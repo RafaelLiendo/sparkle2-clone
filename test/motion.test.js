@@ -206,3 +206,29 @@ test('a harder difficulty drives the line proportionally faster', () => {
   assert.ok(Math.abs(speed('hard') / normal - 2) < 1e-9);
   assert.ok(Math.abs(speed('nightmare') / normal - 3) < 1e-9);
 });
+
+test('a head carried back below rolloutUntil rolls in again at the rollout multiplier', () => {
+  const sp = CONFIG.speedParams;
+  const g = makeGame({ length: 60, base: 0.75, waves: [{ stock: 200 }] });
+  const t = g.tracks[0];
+  const p = t.pushers[0];
+  const headProgress = () => t.path.progress(t.orbs[t.orbs.length - 1].s);
+  run(g, 10);
+  assert.ok(headProgress() > sp.rolloutUntil, 'rolled in past the threshold');
+  assert.ok(Math.abs(p.mult - 1) < 1e-3, 'eased down to base speed');
+
+  // Two Backwards in a row carry the head off-screen, onto the lead-in.
+  g.startBackwards();
+  run(g, CONFIG.backwardsDuration + 0.1);
+  g.startBackwards();
+  run(g, CONFIG.backwardsDuration + 0.1);
+  assert.ok(headProgress() < 0, 'head is off-screen');
+  assert.ok(Math.abs(p.mult - sp.rolloutMult) < 1e-2, 'rollout re-engaged');
+
+  let back = 0;
+  while (headProgress() < 0 && back < 60) {
+    run(g, 0.1);
+    back += 0.1;
+  }
+  assert.ok(back < 5, `head back on screen after ${back.toFixed(1)} s`);
+});

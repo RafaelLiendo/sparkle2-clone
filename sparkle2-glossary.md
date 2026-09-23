@@ -374,7 +374,10 @@ An ordered, moving sequence of orbs following a path.
   - Base pusher speed **4 orbs/s**.
   - **Rollout feed-in:** the line enters at **20 orbs/s** (rollout multiplier ×5);
     once the head reaches **25%** of the **visible span** (§2.5) the multiplier drops
-    to ×1 and the line eases down to base speed (4 orbs/s).
+    to ×1 and the line eases down to base speed (4 orbs/s). Rollout depends only on
+    where the head is, so it runs any time the head is below 25%. A line that
+    Backwards (or anything else) carries back below 25%, even off-screen onto the
+    lead-in, rolls in again at ×5 instead of crawling back at base speed.
   - **Danger crawl:** once the head passes **75%** of the visible span the line slows
     again, **×0.5** (2 orbs/s at base) — a built-in comeback softener, independent of
     the abyss grace window.

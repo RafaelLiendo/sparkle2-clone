@@ -97,7 +97,6 @@ export class Track {
       s: this.mouth - 1,
       stock: w.stock,
       mult: CONFIG.speedParams.rolloutMult,
-      rolloutDone: false,
       speed: 0,
       av: 0,
     };
@@ -222,9 +221,10 @@ export class Track {
       }
       const headS = head >= 0 ? o[head].s : p.s + 1;
       const prog = path.progress(headS);
-      if (!p.rolloutDone && prog >= sp.rolloutUntil) p.rolloutDone = true;
+      // Rollout is positional, not one-shot: a head carried back below rolloutUntil (Backwards,
+      // Retreat) rolls in again instead of crawling back from off-screen at base speed.
       const target =
-        (p.rolloutDone ? 1 : sp.rolloutMult) * (prog >= sp.dangerFrom ? sp.dangerMult : 1) * env.slowMult * env.enchantMult;
+        (prog < sp.rolloutUntil ? sp.rolloutMult : 1) * (prog >= sp.dangerFrom ? sp.dangerMult : 1) * env.slowMult * env.enchantMult;
       p.mult += (target - p.mult) * (1 - Math.exp(-dt / C.speedSmoothing));
       p.speed = env.base * p.mult;
       p.contact = f >= 0 && o[f].s - p.s <= C.splitGap + LINK_EPS && (!nextP || o[f].s < nextP.s);
@@ -392,7 +392,6 @@ export class Track {
         (tail && tail.s - head.s <= CONFIG.overtakeDistance + 1e-9) || head.s + 1 >= front.s - 1e-9;
       if (caught) {
         rear.stock += front.stock;
-        rear.rolloutDone = true;
         rear.mult = 1;
         ps.splice(k, 1);
         this.game.emit({ type: 'pusherOvertaken', track: this.index });
