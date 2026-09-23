@@ -1,0 +1,14 @@
+{
+  "name": "sparkle2-clone",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Sparkle 2 Clone prototype — a marble-shooter puzzle game (see sparkle2-glossary.md).",
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test \"test/**/*.test.js\""
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
