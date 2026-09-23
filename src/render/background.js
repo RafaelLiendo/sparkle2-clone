@@ -237,21 +237,28 @@ export function paintPathGroove(ctx, path) {
   paintAbyssHole(ctx, path);
 }
 
+/** Outer radius (px) of the maw's carved stone ring — just wider than the groove. */
+export function abyssRimRadius(path) {
+  const D = CONFIG.orbDiameterPx;
+  return path.abyssRadius * D + 0.2 * D;
+}
+
 function paintAbyssHole(ctx, path) {
   const D = CONFIG.orbDiameterPx;
   const R = path.abyssRadius * D;
+  const rim = abyssRimRadius(path);
   const { x, y } = path.end;
   // outer carved stone ring
   ctx.fillStyle = 'rgba(0,0,0,0.5)';
   ctx.beginPath();
-  ctx.arc(x + 3, y + 5, R + 14, 0, Math.PI * 2);
+  ctx.arc(x + 3, y + 5, rim + 0.04 * D, 0, Math.PI * 2);
   ctx.fill();
-  const ring = ctx.createRadialGradient(x - R * 0.3, y - R * 0.3, R * 0.6, x, y, R + 12);
+  const ring = ctx.createRadialGradient(x - R * 0.3, y - R * 0.3, R * 0.6, x, y, rim);
   ring.addColorStop(0, '#5d5848');
   ring.addColorStop(1, '#2a2820');
   ctx.fillStyle = ring;
   ctx.beginPath();
-  ctx.arc(x, y, R + 12, 0, Math.PI * 2);
+  ctx.arc(x, y, rim, 0, Math.PI * 2);
   ctx.fill();
   // the hole
   const hole = ctx.createRadialGradient(x, y, 0, x, y, R);
@@ -269,19 +276,19 @@ function paintAbyssHole(ctx, path) {
 export function makeAbyssLip(path) {
   const D = CONFIG.orbDiameterPx;
   const R = path.abyssRadius * D;
-  const size = Math.ceil((R + 24) * 2);
+  const size = Math.ceil((R + 0.3 * D) * 2);
   const c = canvas(size, size);
   const ctx = c.getContext('2d');
   const cx = size / 2;
   ctx.translate(cx, cx);
   // ring band
-  ctx.lineWidth = 10;
-  const rg = ctx.createRadialGradient(-R * 0.3, -R * 0.3, R * 0.5, 0, 0, R + 12);
+  ctx.lineWidth = 0.16 * D;
+  const rg = ctx.createRadialGradient(-R * 0.3, -R * 0.3, R * 0.5, 0, 0, abyssRimRadius(path));
   rg.addColorStop(0, '#6e6754');
   rg.addColorStop(1, '#2c2a22');
   ctx.strokeStyle = rg;
   ctx.beginPath();
-  ctx.arc(0, 0, R + 4, 0, Math.PI * 2);
+  ctx.arc(0, 0, R + 0.08 * D, 0, Math.PI * 2);
   ctx.stroke();
   // teeth
   const n = 14;
@@ -291,9 +298,9 @@ export function makeAbyssLip(path) {
     const a1 = a + 0.1;
     ctx.fillStyle = i % 2 ? '#3e3a2f' : '#48443a';
     ctx.beginPath();
-    ctx.moveTo(Math.cos(a0) * (R + 1), Math.sin(a0) * (R + 1));
-    ctx.lineTo(Math.cos(a) * (R - 9), Math.sin(a) * (R - 9));
-    ctx.lineTo(Math.cos(a1) * (R + 1), Math.sin(a1) * (R + 1));
+    ctx.moveTo(Math.cos(a0) * (R + 0.02 * D), Math.sin(a0) * (R + 0.02 * D));
+    ctx.lineTo(Math.cos(a) * (R - 0.12 * D), Math.sin(a) * (R - 0.12 * D));
+    ctx.lineTo(Math.cos(a1) * (R + 0.02 * D), Math.sin(a1) * (R + 0.02 * D));
     ctx.closePath();
     ctx.fill();
   }
@@ -303,8 +310,8 @@ export function makeAbyssLip(path) {
   for (let i = 0; i < 24; i++) {
     const a = (i / 24) * Math.PI * 2;
     ctx.beginPath();
-    ctx.moveTo(Math.cos(a) * (R + 2), Math.sin(a) * (R + 2));
-    ctx.lineTo(Math.cos(a) * (R + 7), Math.sin(a) * (R + 7));
+    ctx.moveTo(Math.cos(a) * (R + 0.04 * D), Math.sin(a) * (R + 0.04 * D));
+    ctx.lineTo(Math.cos(a) * (R + 0.14 * D), Math.sin(a) * (R + 0.14 * D));
     ctx.stroke();
   }
   return { canvas: c, size };

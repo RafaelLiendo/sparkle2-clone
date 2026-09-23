@@ -6,7 +6,7 @@ export const CONFIG = {
   // --- Units -------------------------------------------------------------------
   canvasW: 1280,
   canvasH: 720,
-  orbDiameterPx: 60,
+  orbDiameterPx: 50,
 
   // --- Match / settle (§1.1) ---------------------------------------------------
   insertSettleDelay: 0.13,
@@ -22,7 +22,7 @@ export const CONFIG = {
   queueSizeHorn: 4,
   reloadTime: 0.25,
   fireCooldown: 0.17,
-  projSpeed: 27,
+  projSpeed: 32, // 27 at 60 px orbs; scaled to keep ~1600 px/s on screen
   speedUnleashedMult: 1.4, // free detail
   muzzleOffset: 0.55, // free detail (orbs from slinger centre)
 
@@ -71,7 +71,7 @@ export const CONFIG = {
   abyssGrace: 3,
   drainBase: 12,
   drainAccel: 21,
-  ABYSS_RADIUS: 1.2,
+  ABYSS_RADIUS: 0.6,
 
   // --- Paths (§2.5) ------------------------------------------------------------
   spawnLeadOrbs: 20,
@@ -89,7 +89,7 @@ export const CONFIG = {
   butterflySpeed: 9, // free detail value
   critterStagger: 0.22, // free detail value
   spinnerPellets: 12,
-  pelletSpeed: 16, // free detail value
+  pelletSpeed: 19, // free detail value
   sparkPellets: 7,
   sparkSpread: 0.55,
   fireflyCount: 4,

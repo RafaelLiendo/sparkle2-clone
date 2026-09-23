@@ -1,5 +1,6 @@
 // Test helpers: a straight synthetic path with hand-placed orbs.
 
+import { CONFIG } from '../src/config.js';
 import { Game } from '../src/game/game.js';
 
 export const DT = 1 / 120;
@@ -8,7 +9,7 @@ export const DT = 1 / 120;
 export function straightLevel({ length = 30, colors = [0, 1, 2, 3], waves = [], runeTarget = 1000, base = 1, paths = 1 } = {}) {
   const mk = (y) => {
     const x0 = 0;
-    const x1 = length * 60;
+    const x1 = length * CONFIG.orbDiameterPx;
     return [[{ x: x0, y }, { x: x0 + (x1 - x0) / 3, y }, { x: x0 + (2 * (x1 - x0)) / 3, y }, { x: x1, y }]];
   };
   return {

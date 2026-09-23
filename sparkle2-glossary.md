@@ -16,7 +16,7 @@
 - Where a presentation note (§7) meets a gameplay rule (§1–6), **gameplay wins**.
 - All gameplay lengths are measured in **orbs** (1 orb = one orb diameter) and all
   speeds in **orbs/s**. The logical canvas is 1280×720 px; *(tunable
-  `orbDiameterPx` = 60)* maps orb units to canvas px.
+  `orbDiameterPx` = 50)* maps orb units to canvas px.
 
 ## Canonical terminology
 
@@ -331,7 +331,7 @@ The player-controlled launcher, positioned on the level (often central), pivotin
   guide is **always visible** during play; on touch, hold shows the guide and release
   fires, tap fires immediately.
 - **Fire:** every click/tap fires immediately; cooldown **0.17 s** *(tunable
-  `fireCooldown`)*; projectile speed **27 orbs/s** *(tunable `projSpeed`)*.
+  `fireCooldown`)*; projectile speed **32 orbs/s** *(tunable `projSpeed`)*.
 - **Rapid-fire input buffer:** a click/tap blocked **only by the cooldown** is banked
   instead of dropped, up to **the number of orbs currently in the queue** — excess
   clicks are dropped, so the buffer can never out-run the ammo. Buffered shots launch
@@ -487,7 +487,7 @@ A gold, forked/hooked object at the tail of an orb line that drives it forward.
 - **Abyss:** terminal region of the path. **Non-colliding** — orbs travel into it and
   projectiles cannot reach orbs inside (§1.6). Model as a terminal path extension +
   grace-timer trigger. Flight of the Butterflies visually emerges from it.
-- **Abyss geometry:** one constant, *(tunable `ABYSS_RADIUS` = 1.2 orbs)*. The path ends at
+- **Abyss geometry:** one constant, *(tunable `ABYSS_RADIUS` = 0.6 orbs)*. The path ends at
   the hole's center, so the visible hole radius and the swallowed path depth are the
   same length — "inside the Abyss" is exactly what the player sees as the hole. All
   renderer dimensions derive from it.

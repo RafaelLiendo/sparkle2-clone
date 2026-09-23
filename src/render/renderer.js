@@ -174,15 +174,17 @@ export class Renderer {
     const path = track.path;
     const k = Math.min(1, track.graceT / CONFIG.abyssGrace);
     if (k <= 0 && !track.anyInsideAbyss()) return;
-    const R = path.abyssRadius * CONFIG.orbDiameterPx;
+    const D = CONFIG.orbDiameterPx;
+    const R = path.abyssRadius * D;
+    const haze = R + 1.2 * D;
     const { x, y } = path.end;
     const pulse = 0.85 + 0.15 * Math.sin(t * 2.2);
-    const g = ctx.createRadialGradient(x, y, R * 0.8, x, y, R * 2.2);
+    const g = ctx.createRadialGradient(x, y, R * 0.8, x, y, haze);
     g.addColorStop(0, `rgba(70,20,90,${0.35 * k * pulse})`);
     g.addColorStop(1, 'rgba(70,20,90,0)');
     ctx.fillStyle = g;
     ctx.beginPath();
-    ctx.arc(x, y, R * 2.2, 0, Math.PI * 2);
+    ctx.arc(x, y, haze, 0, Math.PI * 2);
     ctx.fill();
   }
 
@@ -249,16 +251,16 @@ export class Renderer {
     // plinth
     ctx.fillStyle = 'rgba(0,0,0,0.5)';
     ctx.beginPath();
-    ctx.arc(5, 8, 78, 0, Math.PI * 2);
+    ctx.arc(5, 8, D * 1.3, 0, Math.PI * 2);
     ctx.fill();
-    const pg = ctx.createRadialGradient(-25, -30, 10, 0, 0, 78);
+    const pg = ctx.createRadialGradient(-D * 0.42, -D * 0.5, D * 0.17, 0, 0, D * 1.3);
     pg.addColorStop(0, '#4d4a40');
     pg.addColorStop(1, '#1d1c17');
     ctx.fillStyle = pg;
     ctx.beginPath();
     for (let i = 0; i < 8; i++) {
       const a = (i / 8) * Math.PI * 2 + Math.PI / 8;
-      ctx.lineTo(Math.cos(a) * 76, Math.sin(a) * 76);
+      ctx.lineTo(Math.cos(a) * D * 1.27, Math.sin(a) * D * 1.27);
     }
     ctx.closePath();
     ctx.fill();
@@ -269,14 +271,14 @@ export class Renderer {
     const lit = game.pipsLit();
     const dim = empty ? 0.4 : 1;
     ctx.strokeStyle = 'rgba(20,16,10,0.7)';
-    ctx.lineWidth = 10;
+    ctx.lineWidth = D * 0.17;
     ctx.beginPath();
-    ctx.arc(0, 0, 60, 0, Math.PI * 2);
+    ctx.arc(0, 0, D, 0, Math.PI * 2);
     ctx.stroke();
     for (let i = 0; i < RUNE_PIPS; i++) {
       const a = -Math.PI / 2 + (i / RUNE_PIPS) * Math.PI * 2;
-      const px = Math.cos(a) * 60;
-      const py = Math.sin(a) * 60;
+      const px = Math.cos(a) * D;
+      const py = Math.sin(a) * D;
       ctx.save();
       ctx.translate(px, py);
       ctx.rotate(a + Math.PI / 2);
@@ -308,7 +310,7 @@ export class Renderer {
     ctx.rotate(s.angle);
     ctx.translate(-s.kick * 7, 0);
     const sizes = [1, 0.66, 0.52, 0.42];
-    const offsets = [10, -34, -62, -86];
+    const offsets = [0.17, -0.57, -1.03, -1.43].map((k) => k * D);
     for (let i = s.queue.length - 1; i >= 1; i--) {
       const d = D * sizes[i];
       art.drawShadow(ctx, offsets[i], 0, d, 0.6);

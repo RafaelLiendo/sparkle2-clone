@@ -25,7 +25,7 @@ test('lead-in extrapolates the entry tangent; the far end clamps at the hole cen
   const g = makeGame();
   const p = g.paths[0];
   const back = p.pointAt(-20);
-  assert.equal(Math.round(back.x), -1200);
+  assert.equal(Math.round(back.x), -20 * CONFIG.orbDiameterPx);
   const far = p.pointAt(p.length + 5);
   assert.deepEqual(far, p.end);
   assert.ok(Math.abs(p.visibleEnd - (p.length - CONFIG.ABYSS_RADIUS)) < 1e-9);
@@ -146,8 +146,8 @@ test('Frost Ray destroys everything within the widening beam', () => {
   const t = g.tracks[0];
   place(g, t, [R, B, G, R, B, G, R, B, G, R], 2);
   // beam straight up from below the line, centred on x = 5.5 orbs
-  g.frostRay(5.5 * 60, 700, 0, -1);
-  // local width ≈ 3 + 0.05*8.3 ≈ 3.4 orbs → half ≈ 1.7: orbs centred at 4.5..6.5 destroyed
+  g.frostRay(5.5 * CONFIG.orbDiameterPx, 700, 0, -1);
+  // local width ≈ 3 + 0.05*10 ≈ 3.5 orbs → half ≈ 1.75: orbs centred at 4..7 destroyed
   const left = t.orbs.map((o) => o.s);
   assert.ok(left.every((s) => Math.abs(s - 5.5) > 1.6));
   assert.ok(left.length >= 6 && left.length <= 8);
@@ -214,7 +214,7 @@ test('Head Start pre-lights pips that Rune Fire does not count', () => {
 
 test('layouts: maws never overlap, the Slinger has clearance, path sections never crowd', () => {
   const D = CONFIG.orbDiameterPx;
-  const maw = CONFIG.ABYSS_RADIUS * D + 12; // hole + carved rim
+  const maw = (CONFIG.ABYSS_RADIUS + 0.2) * D; // hole + carved rim (abyssRimRadius)
   const groove = 0.64 * D;
   for (const day of DAYS) {
     const level = buildLevel(day);
@@ -224,7 +224,7 @@ test('layouts: maws never overlap, the Slinger has clearance, path sections neve
       assert.ok(Math.hypot(p.end.x - sl.x, p.end.y - sl.y) > maw + 80, `${day.id}: slinger clear of maw`);
       for (let s = 0; s <= p.visibleEnd; s += 0.25) {
         const a = p.pointAt(s);
-        assert.ok(Math.hypot(a.x - sl.x, a.y - sl.y) > 78 + D / 2 + 8, `${day.id}: slinger clear of path at s=${s}`);
+        assert.ok(Math.hypot(a.x - sl.x, a.y - sl.y) > 1.3 * D + D / 2 + 8, `${day.id}: slinger clear of path at s=${s}`);
       }
     }
     for (let i = 0; i < paths.length; i++) {
