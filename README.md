@@ -67,12 +67,12 @@ given seed. It emits events that the renderer and audio consume.
 - **Line speed.** `CONFIG.speedParams.base` keeps the canonical 4 orbs/s. Each day overrides it
   through its per-level `speedParams` (0.7–1.0 orbs/s): with 50 px orbs, 4 orbs/s crosses a whole
   path in about 18 s. Rollout (×5), danger crawl (×0.5) and 0.4 s smoothing apply as specified.
-  Difficulty then multiplies that per-day base (`CONFIG.difficultySpeed`): Normal ×2, Hard ×3,
-  Nightmare ×4. Everything else (shots, recoil, Backwards, drain) keeps its canonical speed.
-- **Zoom.** Orbs are 50 px (the spec first had 60 px). Paths are drawn in pixels, so they hold
-  about 20% more orbs. Shot and pellet speeds were raised (`projSpeed` 32, `pelletSpeed` 19) so
-  they cross the screen as fast as before. The Abyss hole (`ABYSS_RADIUS` 0.6) is about as wide
-  as the groove.
+  Difficulty then multiplies that per-day base (`CONFIG.difficultySpeed`): Normal ×1, Hard ×2,
+  Nightmare ×3. Everything else (shots, recoil, Backwards, drain) keeps its canonical speed.
+- **Zoom.** Orbs are 50 px. Paths are drawn in pixels, so the orb size sets how many orbs a
+  path holds. Shot and pellet speeds (`projSpeed` 32, `pelletSpeed` 19) are tuned for about
+  1600 px/s on screen at this zoom. The Abyss hole (`ABYSS_RADIUS` 0.6) is about as wide as the
+  groove.
 - **Settle deferral** (§3 Wild) applies to any shot whose run touches a colour-linked,
   attracting gap edge, not only Wilds. The shot resolves once the snap lands, as the shot's own match.
 - **Wild pops** are real pops but combo-neutral, so they never drop a power-up and so never recoil.

@@ -192,7 +192,7 @@ test('difficulty multiplies the level line speed; omitted means ×1', () => {
     assert.equal(g.difficulty, id);
     assert.ok(Math.abs(g.speedBase - 0.75 * mult) < 1e-9, `${id} ×${mult}`);
   }
-  assert.deepEqual(CONFIG.difficultySpeed, { normal: 2, hard: 3, nightmare: 4 });
+  assert.deepEqual(CONFIG.difficultySpeed, { normal: 1, hard: 2, nightmare: 3 });
 });
 
 test('a harder difficulty drives the line proportionally faster', () => {
@@ -203,6 +203,6 @@ test('a harder difficulty drives the line proportionally faster', () => {
   };
   const normal = speed('normal');
   assert.ok(normal > 0);
-  assert.ok(Math.abs(speed('hard') / normal - 1.5) < 1e-9);
-  assert.ok(Math.abs(speed('nightmare') / normal - 2) < 1e-9);
+  assert.ok(Math.abs(speed('hard') / normal - 2) < 1e-9);
+  assert.ok(Math.abs(speed('nightmare') / normal - 3) < 1e-9);
 });

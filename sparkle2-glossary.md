@@ -17,6 +17,12 @@
 - All gameplay lengths are measured in **orbs** (1 orb = one orb diameter) and all
   speeds in **orbs/s**. The logical canvas is 1280×720 px; *(tunable
   `orbDiameterPx` = 50)* maps orb units to canvas px.
+- **Zoom (orb scale):** path layouts are authored in **canvas px**, so `orbDiameterPx`
+  is the camera zoom. It is set small enough that paths hold many orbs, which gives
+  long paths and time to react at the given orbs/s line speeds. Speeds of things that
+  cross the open field rather than follow a path (`projSpeed`, `pelletSpeed`) are tuned
+  for the on-screen px/s they produce at this zoom, so changing `orbDiameterPx` means
+  retuning them. Sizes in orbs (radii, beam widths, recoil) scale with the orbs.
 
 ## Canonical terminology
 
@@ -490,7 +496,9 @@ A gold, forked/hooked object at the tail of an orb line that drives it forward.
 - **Abyss geometry:** one constant, *(tunable `ABYSS_RADIUS` = 0.6 orbs)*. The path ends at
   the hole's center, so the visible hole radius and the swallowed path depth are the
   same length — "inside the Abyss" is exactly what the player sees as the hole. All
-  renderer dimensions derive from it.
+  renderer dimensions derive from it. The hole is about as wide as the carved path
+  groove, and its stone rim only slightly wider, so the maw reads as the path's end, not
+  a crater.
 
 ### 2.6 Power-up entity
 
@@ -535,7 +543,7 @@ All power-ups are beneficial (none must be dodged). Full roster of 15:
 | **Colour Splash** | Recolors all orbs within **2.8 orbs** *(tunable `splashRadius`)* of the impact point to the **fired orb's color** — a pure recolor: destroys nothing, never shoves the line or changes its speed, and the projectile vanishes on impact. Indirect pops only, via gap attraction (§1.1). Sets up big matches, especially across close path sections. |
 | **Colour Wipe** | Removes **all orbs of one color** from the entire board, including inside the Abyss (§1.6). The wiped color comes from the collecting shot (icon color rule: §1.4). Graceful no-op if the color is absent (reachable: the collecting orb's color can vanish from the board while the shot is in flight). |
 | **Fireflies** | Recolors scattered orbs to match neighbors, creating matchable groups (destroys nothing). **Selection rule:** up to *(tunable `fireflyCount` = 4)* orbs that sit **linked** beside a different-colored, non-Wild neighbor are picked at random (seeded rng, without replacement); each firefly homes to its orb over *(tunable `fireflyTravel`)* s and recolors it to that neighbor's color — scattered pair-making, never a uniform area. Indirect pops only, via gap attraction (§1.1). Board-wide: swallowed orbs are legal targets (§1.6). Registry-timed. |
-| **Frost Ray** | Armed type: loads a Frost Ray charge at the queue front (§2.2/§3). Firing releases an **instant piercing beam** along the aim instead of a projectile. The beam **widens as it travels**: local width = *(tunable `frostBaseWidth` = 3 orbs)* + *(tunable `frostWidthGain` = 0.05)* × distance from the muzzle (in orbs) — ≈ **4 orbs** wide after one screen width (1280 px ≈ 21.3 orbs), no cap. Destroys ALL orbs whose center lies within **half the local beam width** of the beam line, from the muzzle outward — **including orbs inside the Abyss** where the beam overlaps it (§1.6). Hit orbs are grouped into contiguous runs; each is destroyed silently (§4). |
+| **Frost Ray** | Armed type: loads a Frost Ray charge at the queue front (§2.2/§3). Firing releases an **instant piercing beam** along the aim instead of a projectile. The beam **widens as it travels**: local width = *(tunable `frostBaseWidth` = 3 orbs)* + *(tunable `frostWidthGain` = 0.05)* × distance from the muzzle (in orbs) — ≈ **4.3 orbs** wide after one screen width (1280 px ≈ 25.6 orbs at 50 px/orb), no cap. Destroys ALL orbs whose center lies within **half the local beam width** of the beam line, from the muzzle outward — **including orbs inside the Abyss** where the beam overlaps it (§1.6). Hit orbs are grouped into contiguous runs; each is destroyed silently (§4). |
 | **Orb of Decay** | Armed type: loads a Decay charge (§2.2/§3). On impact the projectile destroys the hit orb **plus up to** *(tunable `decaySpread` = 6)* **orbs on each side**, within the hit orb's contiguous stretch — **never across a gap** — as **one** silent destruction event (§4). May consume orbs just inside the Abyss when the impact lands at the brink (§1.6 blast-overlap rule). Index-based and stretch-bounded — distinct from Purple Flame's radius blast, which crosses path bends and gaps. |
 | **Wrath of the Stars** | *(tunable `starCount` = 8)* shooting stars rain from above the field, each homing on a random (seeded rng) orb outside the Abyss, staggered by `critterStagger` and falling for *(tunable `starFall`)* s. Each landing blasts a *(tunable `starRadius` = 0.5 orbs)* radius: every orb inside it is destroyed (contiguous runs destroyed silently, §4), reaching inside the Abyss only via radius overlap (§1.6). Registry-timed (defers the drain). |
 | **Spark Shot** | Armed type: loads a Spark charge (§2.2/§3). Firing releases a fan of *(tunable `sparkPellets` = 7)* pellets spread across *(tunable `sparkSpread` = 0.55)* rad centered on the aim — same pellet rules as Fire Spinner (first orb touched destroyed silently, §4; no icon collection, no reach inside the Abyss). |

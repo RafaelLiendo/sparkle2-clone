@@ -116,7 +116,7 @@ export const CONFIG = {
 
   // --- Difficulty --------------------------------------------------------------
   // Line-speed multiplier on each day's speedParams.base.
-  difficultySpeed: { normal: 2, hard: 3, nightmare: 4 },
+  difficultySpeed: { normal: 1, hard: 2, nightmare: 3 },
 
   // --- Simulation --------------------------------------------------------------
   simHz: 120,

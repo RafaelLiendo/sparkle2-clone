@@ -13,7 +13,9 @@ import { paintMap } from './ui/mapArt.js';
 const W = CONFIG.canvasW;
 const H = CONFIG.canvasH;
 const STEP = 1 / CONFIG.simHz;
-const TITLE_SPIN = 0.12; // title-ring angular speed (rad/s) before the difficulty multiplier
+// title-ring angular speed (rad/s) per difficulty; spread wider than the gameplay
+// multiplier so a difficulty change is obvious at a glance (~31 s, ~10 s, ~4.5 s per lap)
+const TITLE_SPIN = { normal: 0.2, hard: 0.6, nightmare: 1.4 };
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
@@ -44,6 +46,7 @@ export class App {
     this.fps = 0;
     this.titlePhase = 0;
     this.titleSpin = null;
+    this.titleGrow = null;
 
     this.fit();
     window.addEventListener('resize', () => this.fit());
@@ -232,18 +235,26 @@ export class App {
     const t = this.time;
     const cx = W / 2;
     const cy = 250;
-    // a slow ring of stone orbs circling the title, spinning faster on harder difficulties;
-    // the spin eases toward its target so switching difficulty never jumps the ring
-    const target = TITLE_SPIN * (CONFIG.difficultySpeed[this.settings.difficulty] ?? 1);
+    // a slow ring of stone orbs circling the title, spinning faster and widening by one
+    // marble per step on harder difficulties; spin and size ease toward their targets so
+    // switching difficulty never jumps the ring
+    const ease = Math.min(1, dt * 3);
+    const target = TITLE_SPIN[this.settings.difficulty] ?? TITLE_SPIN.normal;
     this.titleSpin ??= target;
-    this.titleSpin += (target - this.titleSpin) * Math.min(1, dt * 3);
+    this.titleSpin += (target - this.titleSpin) * ease;
     this.titlePhase += this.titleSpin * dt;
+    const step = Math.max(0, DIFFICULTIES.findIndex((d) => d.id === this.settings.difficulty));
+    const growTarget = step * CONFIG.orbDiameterPx;
+    this.titleGrow ??= growTarget;
+    this.titleGrow += (growTarget - this.titleGrow) * ease;
+    const rx = 200 + this.titleGrow;
+    const ry = (120 / 250) * rx; // keep the ring's tilt as it widens
     const art = this.renderer.art;
     const n = 14;
     for (let i = 0; i < n; i++) {
       const a = (i / n) * Math.PI * 2 + this.titlePhase;
-      const x = cx + Math.cos(a) * 250;
-      const y = cy + Math.sin(a) * 120;
+      const x = cx + Math.cos(a) * rx;
+      const y = cy + Math.sin(a) * ry;
       const depth = (Math.sin(a) + 1) / 2;
       const d = 34 + depth * 22;
       art.drawShadow(ctx, x, y, d, 0.6);
