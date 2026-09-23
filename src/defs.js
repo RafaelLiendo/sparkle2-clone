@@ -37,26 +37,29 @@ export const COLORS = BASE.map(([name, base], id) => ({
   glow: shade(base, name === 'black' ? 0.75 : 0.55),
 }));
 
+/** Player-facing colour name, e.g. "Purple". */
+export const colorName = (id) => COLORS[id].name[0].toUpperCase() + COLORS[id].name.slice(1);
+
 export const RED = 0;
 export const BLUE = 1;
 
 /** Power-up roster (§4). `armed` types load queue charges; the rest act on collection. */
 export const POWERUPS = {
-  purpleFire: { name: 'Purple Fire', armed: true },
-  slow: { name: 'Slow', armed: false, timed: true },
-  wild: { name: 'Wild', armed: true },
-  backwards: { name: 'Backwards', armed: false, timed: true },
-  firebolts: { name: 'Firebolts x3', armed: true },
-  colourWipe: { name: 'Colour Wipe', armed: false },
-  colourSplash: { name: 'Colour Splash', armed: true },
-  butterflies: { name: 'Flight of the Butterflies', armed: false, timed: true },
-  fireSpinner: { name: 'Fire Spinner', armed: false },
-  fireflies: { name: 'Fireflies', armed: false, timed: true },
-  frostRay: { name: 'Frost Ray', armed: true },
-  orbOfDecay: { name: 'Orb of Decay', armed: true },
-  wrathOfStars: { name: 'Wrath of the Stars', armed: false, timed: true },
-  sparkShot: { name: 'Spark Shot', armed: true },
-  runeReward: { name: 'Rune Reward', armed: false },
+  purpleFire: { name: 'Purple Fire', armed: true, text: 'Loads a Purple Flame that blasts every orb around its impact.' },
+  slow: { name: 'Slow', armed: false, timed: true, text: 'The lines crawl for a few seconds.' },
+  wild: { name: 'Wild', armed: true, text: 'Loads a Wild Orb that matches any colour.' },
+  backwards: { name: 'Backwards', armed: false, timed: true, text: 'The lines roll backwards for a few seconds.' },
+  firebolts: { name: 'Firebolts x3', armed: true, text: 'Loads three Firebolts, each burning away a single orb.' },
+  colourWipe: { name: 'Colour Wipe', armed: false, text: 'Removes every orb of the colour you shoot it with.' },
+  colourSplash: { name: 'Colour Splash', armed: true, text: 'Loads a paint shot that turns nearby orbs its colour.' },
+  butterflies: { name: 'Flight of the Butterflies', armed: false, timed: true, text: 'Butterflies rise from the Abyss, each carrying off an orb.' },
+  fireSpinner: { name: 'Fire Spinner', armed: false, text: 'A ring of fireballs bursts from the Slinger.' },
+  fireflies: { name: 'Fireflies', armed: false, timed: true, text: 'Fireflies recolour stray orbs to match their neighbours.' },
+  frostRay: { name: 'Frost Ray', armed: true, text: 'Loads a piercing beam that widens as it travels.' },
+  orbOfDecay: { name: 'Orb of Decay', armed: true, text: 'Loads a shot that crumbles the orbs on either side of its hit.' },
+  wrathOfStars: { name: 'Wrath of the Stars', armed: false, timed: true, text: 'Shooting stars rain down on the lines.' },
+  sparkShot: { name: 'Spark Shot', armed: true, text: 'Loads a fan of sparks, each burning away an orb.' },
+  runeReward: { name: 'Rune Reward', armed: false, text: 'Lights one rune of the Rune Circle.' },
 };
 
 export const POWERUP_IDS = Object.keys(POWERUPS);

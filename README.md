@@ -10,7 +10,7 @@ Plain ES modules + Canvas 2D + WebAudio. No dependencies, no build step.
 
 ```sh
 npm start        # serves on http://localhost:5173
-npm test         # 44 simulation tests (node:test)
+npm test         # 50 simulation and progress tests (node:test)
 ```
 
 Any static file server works too; ES modules just need `http://`, not `file://`.
@@ -27,6 +27,16 @@ Any static file server works too; ES modules just need `http://`, not `file://`.
 **Difficulty** — Normal, Hard or Nightmare — is chosen on the title screen or in Options and applies from the next day started; story progress is shared.
 
 Options include **Reduced Flashing** (softer glows, fewer rings and motes — appearance only), volume and mute.
+
+### Progress feedback
+
+- **Day intro** shows the day's stones, marks any new colour, and lists the power-ups that join the drops from that day on.
+- **Level banner** repeats "New: Purple stones" before the line arrives when a day adds a colour.
+- **First sighting**: a power-up icon carries its name until you collect that power-up once.
+- **Win reveal**: a recovered key or a new enchantment rises in with its own chime. **Choose enchantments** opens the menu with the new card focused. Nothing is equipped for you.
+- **"New" tags** stay on enchantments until you have looked at them in the menu, and the Enchantments buttons show a gold dot until then.
+- **World Map**: after a first clear, the cleared seal turns, newly reachable days unveil in turn and a recovered key settles into its slot.
+- All of it stays within §7.6: soft fades, no flashes. Reduced Flashing drops the glows and `prefers-reduced-motion` skips the animations.
 
 ### Dev URL parameters
 
@@ -45,6 +55,7 @@ src/
   path.js          cubic-Bézier path: arc-length LUT, lead-in, Abyss clamp, crossing cover
   pathBuilders.js  rounded polylines, spirals — tangent-continuous by construction
   levels.js        story days, layouts, power-up unlock tiers, narrative text
+  progress.js      what each day introduces, which days a clear opens
   game/
     game.js        simulation core: settle/combo, pops, recoil, effects, runes, abyss, win/lose
     track.js       one path: segments, gap attraction, pushers, feed, overtake, insertion

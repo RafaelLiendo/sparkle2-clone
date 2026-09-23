@@ -285,6 +285,9 @@ button:focus-visible {
 .modal.wide {
   width: 1000px;
 }
+.modal.roomy {
+  width: 760px;
+}
 .modal h2 {
   color: var(--gold-hi);
   font-size: 30px;
@@ -466,12 +469,31 @@ button:focus-visible {
   top: 16px;
   left: 50%;
   transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
   font-family: Cinzel, Georgia, serif;
   font-size: 26px;
+  white-space: nowrap;
   color: var(--gold-hi);
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9);
   opacity: 0;
   animation: banner 4s ease-in-out forwards;
+}
+.day-banner.long {
+  animation-duration: 6s;
+}
+.banner-news {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 17px;
+  color: var(--ink);
+  padding: 4px 14px 4px 8px;
+  border-radius: 20px;
+  background: rgba(14, 12, 9, 0.6);
+  border: 1px solid rgba(212, 171, 85, 0.45);
 }
 @keyframes banner {
   15% {
@@ -485,8 +507,307 @@ button:focus-visible {
   }
 }
 
+/* ---------------------------------------------------------------- progress */
+.swatch {
+  display: block;
+  flex: none;
+}
+
+/* gold dot: an unlocked enchantment has not been looked at yet */
+.btn.has-new {
+  position: relative;
+}
+.btn.has-new::after {
+  content: '';
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #fff0b0, #d8aa40 60%, #8a6010);
+  box-shadow: 0 0 8px rgba(255, 210, 120, 0.7);
+}
+
+/* day intro: what the day holds */
+.preview {
+  margin: 4px 0 8px;
+}
+.preview .lbl,
+.new-pups .lbl {
+  color: var(--ink-dim);
+  font-size: 16px;
+}
+.stones {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 6px;
+}
+.stones .lbl {
+  align-self: center;
+  margin-right: 6px;
+}
+.stone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border-radius: 50%;
+}
+.stone.new .swatch {
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--gold), 0 0 12px rgba(255, 210, 120, 0.45);
+}
+.stone em,
+.new-tag {
+  font-family: Cinzel, Georgia, serif;
+  font-style: normal;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--gold-hi);
+  text-transform: uppercase;
+}
+.stone em {
+  margin-top: 3px;
+}
+.novelty {
+  margin: 8px 0 0;
+  font-size: 17px;
+  color: var(--gold-hi);
+}
+.new-pups {
+  margin-top: 10px;
+}
+.new-pups ul {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 14px;
+  text-align: left;
+}
+.new-pups li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  line-height: 1.25;
+  color: var(--ink-dim);
+}
+.new-pups b {
+  display: block;
+  font-family: Cinzel, Georgia, serif;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--ink);
+}
+
+/* enchantments menu: freshly unlocked cards */
+.new-tag {
+  margin-left: 8px;
+  padding: 1px 6px;
+  border: 1px solid var(--gold);
+  border-radius: 8px;
+  vertical-align: 2px;
+}
+.ench .name {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.ench.new {
+  border-color: var(--gold);
+  animation: fresh-glow 2.8s ease-in-out infinite;
+}
+@keyframes fresh-glow {
+  50% {
+    box-shadow: 0 0 16px rgba(255, 210, 120, 0.35);
+  }
+}
+.ench-hint {
+  color: var(--gold-hi);
+}
+
+/* win: a key or enchantment rises in, one after another */
+.reveal {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  margin: 10px 0 4px;
+}
+.reveal-item {
+  flex: 1;
+  max-width: 280px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 16px 14px 18px;
+  border: 1px solid #6a5a3a;
+  border-radius: 10px;
+  background: linear-gradient(#34301f, #1f1c15);
+  opacity: 0;
+  animation: rise-in 0.7s ease-out var(--delay, 0.35s) forwards, settle-glow 2.4s ease-out var(--delay, 0.35s) forwards;
+}
+.reveal-lbl {
+  font-family: Cinzel, Georgia, serif;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+.reveal-name {
+  font-family: Cinzel, Georgia, serif;
+  font-size: 21px;
+  color: var(--gold-hi);
+}
+.reveal-text {
+  font-size: 16px;
+  line-height: 1.3;
+  color: var(--ink-dim);
+}
+.key-gem {
+  width: 30px;
+  height: 30px;
+  margin: 8px 0 4px;
+  transform: rotate(45deg);
+  border: 2px solid #8a6a30;
+  background: radial-gradient(circle, #fff0b0, #c8962e);
+  box-shadow: 0 0 14px rgba(255, 210, 120, 0.55);
+}
+.ench-sigil {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid var(--gold);
+  background:
+    radial-gradient(circle, transparent 38%, rgba(212, 171, 85, 0.9) 40%, rgba(212, 171, 85, 0.9) 46%, transparent 48%),
+    radial-gradient(circle at 35% 35%, #5a4f36, #1f1c15);
+  box-shadow: 0 0 14px rgba(255, 210, 120, 0.45);
+}
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes settle-glow {
+  0% {
+    border-color: #6a5a3a;
+    box-shadow: none;
+  }
+  35% {
+    border-color: var(--gold);
+    box-shadow: 0 0 22px rgba(255, 210, 120, 0.35);
+  }
+  100% {
+    border-color: var(--gold);
+    box-shadow: 0 0 10px rgba(255, 210, 120, 0.15);
+  }
+}
+
+/* map: the cleared seal turns, new days unveil, a recovered key settles in */
+.map-node .seal {
+  position: relative;
+}
+.map-node.just-done .seal::before,
+.map-node.just-done .seal::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+}
+.map-node.just-done .seal::before {
+  background: radial-gradient(circle at 35% 35%, #d25a48, #8e2418 60%, #5a120a);
+  animation: fade-out 0.9s ease-in-out 0.4s forwards;
+}
+.map-node.just-done .seal::after {
+  border: 2px solid rgba(255, 210, 120, 0.8);
+  opacity: 0;
+  animation: seal-ring 1.4s ease-out 0.6s forwards;
+}
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes seal-ring {
+  0% {
+    opacity: 0;
+    transform: scale(1);
+  }
+  20% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(2.4);
+  }
+}
+.map-node.just-opened {
+  animation: unveil 1.2s ease-out var(--delay, 0.9s) both;
+}
+@keyframes unveil {
+  from {
+    opacity: 0.45;
+    filter: grayscale(0.8);
+  }
+  to {
+    opacity: 1;
+    filter: none;
+  }
+}
+.key-slot.just-got {
+  animation: key-settle 1.4s ease-out 0.5s both;
+}
+@keyframes key-settle {
+  from {
+    background: rgba(0, 0, 0, 0.35);
+    box-shadow: none;
+  }
+  45% {
+    box-shadow: 0 0 16px rgba(255, 210, 120, 0.8);
+  }
+}
+
+/* Reduced Flashing: keep the reveals, drop the glows */
+.reduced-flashing .ench.new,
+.reduced-flashing .map-node.just-done .seal::after {
+  animation: none;
+}
+.reduced-flashing .reveal-item {
+  animation: rise-in 0.7s ease-out var(--delay, 0.35s) forwards;
+  border-color: var(--gold);
+}
+.reduced-flashing .stone.new .swatch {
+  box-shadow: 0 0 0 2px var(--gold);
+}
+.reduced-flashing .key-gem,
+.reduced-flashing .ench-sigil {
+  box-shadow: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .map-node.open:not(.done) .seal {
+  .map-node.open:not(.done) .seal,
+  .ench.new,
+  .map-node.just-done .seal::after {
     animation: none;
+  }
+  .map-node.just-done .seal::before {
+    display: none;
+  }
+  .reveal-item,
+  .map-node.just-opened,
+  .key-slot.just-got {
+    animation: none;
+    opacity: 1;
+  }
+  .reveal-item {
+    border-color: var(--gold);
   }
 }

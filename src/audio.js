@@ -259,6 +259,27 @@ export class Audio {
     this.click(0.25, 1.15);
   }
 
+  // --- progress cues: soft and slow, in the family of the seal / win tones ------------
+
+  /** New enchantment: a rising triangle arpeggio with a shimmer on top. */
+  reward(when = 0) {
+    [0, 4, 7, 11, 14].forEach((s, i) => this.softTone(392 * Math.pow(2, s / 12), 2.4, 0.032, 'triangle', this.sfx, when + i * 0.14));
+    this.shimmer(8, 0.03, when + 0.7);
+  }
+
+  /** Recovered key: a low, bell-like fifth. */
+  keyChime(when = 0) {
+    this.softTone(146.83, 3.2, 0.06, 'sine', this.sfx, when);
+    this.softTone(220, 3, 0.04, 'triangle', this.sfx, when + 0.22);
+    this.shimmer(5, 0.025, when + 0.25);
+  }
+
+  /** World Map after a first clear: the route inks onward. */
+  mapReveal() {
+    this.softTone(329.63, 1.8, 0.03, 'triangle', this.sfx, 0.3);
+    this.softTone(440, 2, 0.03, 'triangle', this.sfx, 0.55);
+  }
+
   // --- ambient music bed -----------------------------------------------------------
 
   startMusic() {

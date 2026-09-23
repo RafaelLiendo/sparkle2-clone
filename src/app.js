@@ -2,12 +2,23 @@
 
 import { Audio } from './audio.js';
 import { CONFIG } from './config.js';
-import { DIFFICULTIES, DIFFICULTY_BY_ID, ENCHANT_BY_ID, ENCHANTMENTS, MAX_LOADOUT, POWERUP_IDS } from './defs.js';
+import { colorName, DIFFICULTIES, DIFFICULTY_BY_ID, ENCHANT_BY_ID, ENCHANTMENTS, MAX_LOADOUT, POWERUP_IDS, POWERUPS } from './defs.js';
 import { Game } from './game/game.js';
 import { buildLevel, DAY_BY_ID, DAYS, EPILOGUE, powerupsForTier, PROLOGUE } from './levels.js';
+import { dayNovelty, newlyOpenedDays } from './progress.js';
 import { makeCanvasEl, paintBackground } from './render/background.js';
+import { drawPowerupIcon } from './render/icons.js';
 import { Renderer } from './render/renderer.js';
-import { isAvailable, isCompleted, keysCollected, loadSave, sanitizeLoadout, unlockedEnchantments, writeSave } from './save.js';
+import {
+  isAvailable,
+  isCompleted,
+  keysCollected,
+  loadSave,
+  sanitizeLoadout,
+  unlockedEnchantments,
+  unseenEnchantments,
+  writeSave,
+} from './save.js';
 import { paintMap } from './ui/mapArt.js';
 
 const W = CONFIG.canvasW;
@@ -16,6 +27,9 @@ const STEP = 1 / CONFIG.simHz;
 // title-ring angular speed (rad/s) per difficulty; spread wider than the gameplay
 // multiplier so a difficulty change is obvious at a glance (~31 s, ~10 s, ~4.5 s per lap)
 const TITLE_SPIN = { normal: 0.2, hard: 0.6, nightmare: 1.4 };
+
+/** "Purple stones", "Purple and Black stones". */
+const stonesPhrase = (ids) => `${ids.map(colorName).join(' and ')} stones`;
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
@@ -47,7 +61,9 @@ export class App {
     this.titlePhase = 0;
     this.titleSpin = null;
     this.titleGrow = null;
+    this.celebration = null; // map reveal owed after a first clear, played when the map next shows
 
+    this.applyReducedFlashing();
     this.fit();
     window.addEventListener('resize', () => this.fit());
     canvas.addEventListener('contextrestored', () => {
@@ -77,6 +93,10 @@ export class App {
 
   persist() {
     writeSave(this.save);
+  }
+
+  applyReducedFlashing() {
+    this.ui.classList.toggle('reduced-flashing', !!this.settings.reducedFlashing);
   }
 
   // ---------------------------------------------------------------------------
@@ -199,6 +219,7 @@ export class App {
         const events = this.game.drainEvents();
         this.renderer.handleEvents(events);
         this.audio.handle(events);
+        this.notePowerupsSeen(events);
         this.renderer.update(dt);
         this.checkEnd(dt);
       }
@@ -274,6 +295,17 @@ export class App {
     ctx.fillText(`state ${g.state}  pend ${g.pending.length}  buf ${g.slinger.buffer}  grace ${g.tracks.map((t) => t.graceT.toFixed(1)).join('/')}`, 14, H - 22);
   }
 
+  /** A power-up counts as known once collected; its icons stop carrying a name caption. */
+  notePowerupsSeen(events) {
+    const unseen = this.renderer.unseenPowerups;
+    for (const ev of events) {
+      if (ev.type !== 'collect' || !unseen.has(ev.ptype)) continue;
+      unseen.delete(ev.ptype);
+      this.save.seenPowerups.push(ev.ptype);
+      this.persist();
+    }
+  }
+
   checkEnd(dt) {
     const g = this.game;
     if (this.endShown || (g.state !== 'won' && g.state !== 'lost')) return;
@@ -301,6 +333,41 @@ export class App {
         }),
       );
     }
+  }
+
+  /** A small canvas that `paintSwatches` fills with a stone of palette colour `id`. */
+  orbSwatch(id, size = 36) {
+    return `<canvas class="swatch" data-orb="${id}" data-size="${size}" aria-hidden="true"></canvas>`;
+  }
+
+  /** A small canvas that `paintSwatches` fills with a power-up icon. */
+  powerupSwatch(type, size = 44) {
+    return `<canvas class="swatch" data-pup="${type}" data-size="${size}" aria-hidden="true"></canvas>`;
+  }
+
+  /** Paint every swatch canvas under `root` at the stage's current resolution. */
+  paintSwatches(root) {
+    const k = this.renderer.scale;
+    root.querySelectorAll('canvas.swatch').forEach((c) => {
+      const size = Number(c.dataset.size);
+      c.style.width = c.style.height = `${size}px`;
+      c.width = c.height = Math.round(size * k);
+      const ctx = c.getContext('2d');
+      ctx.setTransform(k, 0, 0, k, 0, 0);
+      const m = size / 2;
+      if (c.dataset.orb != null) {
+        const d = size * 0.74;
+        this.renderer.art.drawShadow(ctx, m, m, d, 0.6);
+        this.renderer.art.drawOrb(ctx, m, m, d, Number(c.dataset.orb), false, 0.9, -Math.PI / 2, 0);
+      } else {
+        drawPowerupIcon(ctx, c.dataset.pup, m, m, size * 0.3, 0, 1, null, this.settings.reducedFlashing);
+      }
+    });
+  }
+
+  /** Class for Enchantments buttons: a gold dot while an unlocked enchantment is unseen. */
+  enchantBtnClass() {
+    return unseenEnchantments(this.save).length ? ' has-new' : '';
   }
 
   /** Normal / Hard / Nightmare selector; wire its buttons to `pickDifficulty`. */
@@ -336,7 +403,7 @@ export class App {
         </div>
         <nav class="menu">
           <button class="btn primary" data-act="story">${started ? 'Continue the Story' : 'Begin the Story'}</button>
-          <button class="btn" data-act="enchant">Enchantments</button>
+          <button class="btn${this.enchantBtnClass()}" data-act="enchant">Enchantments</button>
           <button class="btn" data-act="options">Options</button>
         </nav>
         ${this.difficultyPicker()}
@@ -350,20 +417,41 @@ export class App {
     });
   }
 
-  showMap() {
+  /** Hand over the owed map reveal, if any (it plays once). */
+  takeCelebration() {
+    const c = this.celebration;
+    this.celebration = null;
+    return c;
+  }
+
+  /**
+   * @param celebrate { done, opened, key } from a first clear: the cleared seal turns,
+   *   newly reachable days unveil in turn and a recovered key settles into its slot
+   */
+  showMap(celebrate = null) {
     this.scene = 'map';
     this.game = null;
     const keys = keysCollected(this.save);
     const nodes = DAYS.map((d) => {
       const done = isCompleted(this.save, d.id);
       const open = isAvailable(this.save, d);
-      const cls = done ? 'done' : open ? 'open' : 'locked';
-      return `<button class="map-node ${cls}${d.key ? ' key' : ''}" style="left:${d.map.x}px;top:${d.map.y}px"
+      let cls = done ? 'done' : open ? 'open' : 'locked';
+      let style = `left:${d.map.x}px;top:${d.map.y}px`;
+      const opened = celebrate?.opened.indexOf(d.id) ?? -1;
+      if (celebrate?.done === d.id) cls += ' just-done';
+      if (opened >= 0) {
+        cls += ' just-opened';
+        style += `;--delay:${(0.9 + opened * 0.35).toFixed(2)}s`;
+      }
+      return `<button class="map-node ${cls}${d.key ? ' key' : ''}" style="${style}"
         data-day="${d.id}" ${open ? '' : 'disabled'} aria-label="${esc(d.name)}${done ? ' (complete)' : open ? '' : ' (locked)'}">
         <span class="seal"></span><span class="label">${esc(d.name)}</span></button>`;
     }).join('');
     const keySlots = [0, 1, 2, 3, 4]
-      .map((i) => `<span class="key-slot ${keys[i] ? 'have' : ''}" title="${esc(keys[i] || 'Undiscovered key')}"></span>`)
+      .map((i) => {
+        const got = keys[i] && keys[i] === celebrate?.key ? ' just-got' : '';
+        return `<span class="key-slot ${keys[i] ? 'have' : ''}${got}" title="${esc(keys[i] || 'Undiscovered key')}"></span>`;
+      })
       .join('');
     this.setUI(`
       <div class="screen map-screen">
@@ -371,10 +459,11 @@ export class App {
         <div class="map-bar">
           <button class="btn small" data-act="back">Title</button>
           <div class="keys" aria-label="Enchanted keys recovered: ${keys.length} of 5">${keySlots}</div>
-          <button class="btn small" data-act="enchant">Enchantments</button>
+          <button class="btn small${this.enchantBtnClass()}" data-act="enchant">Enchantments</button>
           <button class="btn small" data-act="options">Options</button>
         </div>
       </div>`);
+    if (celebrate) this.audio.mapReveal();
     this.bindClicks({
       '[data-act=back]': () => this.showTitle(),
       '[data-act=enchant]': () => this.showEnchantments(() => this.showMap()),
@@ -422,6 +511,24 @@ export class App {
     return this.save.loadout.map((id) => `<span class="chip">${esc(ENCHANT_BY_ID[id].name)}</span>`).join(' ');
   }
 
+  /** What a day holds: its stones (new ones marked) and any power-ups it adds to the drops. */
+  dayPreview(d) {
+    const { newColors, newPowerups } = dayNovelty(d);
+    const stones = d.colors
+      .map((c) => {
+        const isNew = newColors.includes(c);
+        return `<span class="stone${isNew ? ' new' : ''}" title="${esc(colorName(c))}">${this.orbSwatch(c)}${isNew ? '<em>New</em>' : ''}</span>`;
+      })
+      .join('');
+    const warn = newColors.length ? `<p class="novelty">${esc(stonesPhrase(newColors))} join the line — a harder day.</p>` : '';
+    const pups = newPowerups.length
+      ? `<div class="new-pups"><span class="lbl">New power-ups may drop</span><ul>${newPowerups
+          .map((t) => `<li>${this.powerupSwatch(t)}<span><b>${esc(POWERUPS[t].name)}</b>${esc(POWERUPS[t].text)}</span></li>`)
+          .join('')}</ul></div>`
+      : '';
+    return `<div class="preview"><div class="stones" aria-label="Stones: ${esc(d.colors.map(colorName).join(', '))}"><span class="lbl">Stones</span>${stones}</div>${warn}${pups}</div>`;
+  }
+
   showDayIntro(id) {
     const d = DAY_BY_ID[id];
     const done = isCompleted(this.save, id);
@@ -429,14 +536,15 @@ export class App {
     const reward = [];
     if (d.key) reward.push(`<span class="chip key-chip">${esc(d.key)}</span>`);
     if (d.unlock) reward.push(`<span class="chip">${esc(ENCHANT_BY_ID[d.unlock].name)}</span>`);
-    this.modal(
+    const el = this.modal(
       `<h2>${esc(d.name)}</h2>
       <p class="story">${esc(d.intro)}</p>
+      ${this.dayPreview(d)}
       ${reward.length ? `<p class="reward">${done ? 'Earned' : 'Reward'}: ${reward.join(' ')}</p>` : ''}
       <div class="loadout"><span class="lbl">Enchantments</span> ${this.loadoutSummary()}</div>
       <div class="row">
         <button class="btn" data-act="cancel">Back</button>
-        ${unlocked.length ? '<button class="btn" data-act="enchant">Change enchantments</button>' : ''}
+        ${unlocked.length ? `<button class="btn${this.enchantBtnClass()}" data-act="enchant">Change enchantments</button>` : ''}
         <button class="btn primary" data-act="go">Begin the day</button>
       </div>`,
       {
@@ -445,21 +553,36 @@ export class App {
         '[data-act=go]': () => this.startDay(id),
       },
     );
+    this.paintSwatches(el);
   }
 
-  showEnchantments(onDone) {
+  /**
+   * Loadout picker. Enchantments not looked at before carry a "New" tag until the menu
+   * closes; `highlight` focuses one card (the one just unlocked). Nothing is auto-equipped.
+   */
+  showEnchantments(onDone, { highlight } = {}) {
     const unlocked = new Set(unlockedEnchantments(this.save));
+    const fresh = new Set(unseenEnchantments(this.save));
     const render = () => {
+      const lo = this.save.loadout;
       const cards = ENCHANTMENTS.map((e) => {
         const has = unlocked.has(e.id);
-        const on = this.save.loadout.includes(e.id);
+        const on = lo.includes(e.id);
+        const isNew = fresh.has(e.id);
         const src = DAYS.find((d) => d.unlock === e.id);
-        return `<button class="ench ${has ? '' : 'locked'} ${on ? 'on' : ''}" data-ench="${e.id}" ${has ? '' : 'disabled'} aria-pressed="${on}">
-          <span class="name">${esc(e.name)}</span>
+        return `<button class="ench ${has ? '' : 'locked'} ${on ? 'on' : ''} ${isNew ? 'new' : ''}" data-ench="${e.id}" ${has ? '' : 'disabled'} aria-pressed="${on}">
+          <span class="name">${esc(e.name)}${isNew ? '<span class="new-tag">New</span>' : ''}</span>
           <span class="text">${has ? esc(e.text) : `Complete “${esc(src ? src.name : '?')}” to unlock`}</span></button>`;
       }).join('');
+      const waiting = [...fresh].some((id) => !lo.includes(id));
+      let hint = `Equip up to ${MAX_LOADOUT}. Equipped: ${lo.length} / ${MAX_LOADOUT}`;
+      if (waiting) {
+        hint = lo.length >= MAX_LOADOUT
+          ? 'Your set is full — unequip one to make room, or keep your current set.'
+          : `New enchantment ready. Tap it to equip, or keep your current set. Equipped: ${lo.length} / ${MAX_LOADOUT}`;
+      }
       return `<h2>Enchantments</h2>
-        <p class="muted">Equip up to ${MAX_LOADOUT}. Equipped: ${this.save.loadout.length} / ${MAX_LOADOUT}</p>
+        <p class="muted${waiting ? ' ench-hint' : ''}">${hint}</p>
         <div class="ench-grid">${cards}</div>
         <div class="row"><button class="btn primary" data-act="done">Done</button></div>`;
     };
@@ -475,10 +598,13 @@ export class App {
           this.persist();
           el.querySelector('.modal').innerHTML = render();
           bind(el);
+          el.querySelector(`[data-ench="${id}"]`)?.focus();
         }),
       );
       el.querySelector('[data-act=done]').addEventListener('click', () => {
         this.audio.ui();
+        this.save.seenEnchantments = [...unlocked];
+        this.persist();
         this.closeModal();
         onDone();
       });
@@ -486,6 +612,7 @@ export class App {
     const el = this.modal(render(), {});
     el.querySelector('.modal').classList.add('wide');
     bind(el);
+    if (highlight) el.querySelector(`[data-ench="${highlight}"]`)?.focus();
   }
 
   showOptions(onDone) {
@@ -514,6 +641,8 @@ export class App {
             this.save.completed = [];
             this.save.loadout = [];
             this.save.seenPrologue = false;
+            this.save.seenEnchantments = [];
+            this.save.seenPowerups = [];
             this.persist();
             b.textContent = 'Progress erased';
             b.disabled = true;
@@ -530,6 +659,7 @@ export class App {
         const k = inp.dataset.opt;
         o[k] = inp.type === 'checkbox' ? inp.checked : Number(inp.value);
         this.audio.applyVolumes();
+        this.applyReducedFlashing();
         this.persist();
       }),
     );
@@ -550,17 +680,25 @@ export class App {
       difficulty: this.settings.difficulty,
     });
     this.renderer.setGame(this.game);
+    this.renderer.unseenPowerups = new Set(POWERUP_IDS.filter((t) => !this.save.seenPowerups.includes(t)));
+    this.celebration = null;
     this.scene = 'level';
     this.paused = false;
     this.endTimer = 0;
     this.endShown = false;
     this.acc = 0;
     this.game.aimAt(this.pointer.x, this.pointer.y);
+    // a day that brings new stones says so up front, before the line arrives (§7.6: no surprise spikes)
+    const { newColors } = dayNovelty(day);
+    const news = newColors.length
+      ? `<div class="banner-news">${newColors.map((c) => this.orbSwatch(c, 30)).join('')}<span>New: ${esc(stonesPhrase(newColors))}</span></div>`
+      : '';
     this.setUI(`
       <div class="screen level-screen">
         <button class="icon-btn pause-btn" data-act="pause" aria-label="Pause">❚❚</button>
-        <div class="day-banner">${esc(this.dayLabel())}</div>
+        <div class="day-banner${news ? ' long' : ''}">${esc(this.dayLabel())}${news}</div>
       </div>`);
+    this.paintSwatches(this.ui);
     this.bindClicks({ '[data-act=pause]': () => this.pauseGame() });
   }
 
@@ -602,22 +740,51 @@ export class App {
     if (first) {
       this.save.completed.push(d.id);
       this.persist();
+      this.celebration = { done: d.id, opened: newlyOpenedDays(this.save, d.id), key: d.key };
     }
+    const ench = first && d.unlock ? ENCHANT_BY_ID[d.unlock] : null;
     const lines = [];
-    if (d.key) lines.push(`<p class="reward">You recovered the <span class="chip key-chip">${esc(d.key)}</span></p>`);
-    if (first && d.unlock) lines.push(`<p class="reward">New enchantment: <span class="chip">${esc(ENCHANT_BY_ID[d.unlock].name)}</span> <em>${esc(ENCHANT_BY_ID[d.unlock].text)}</em></p>`);
+    const reveals = [];
+    if (d.key && first) {
+      reveals.push(`<div class="reveal-item key-reveal">
+        <span class="reveal-lbl">Enchanted key recovered</span><span class="key-gem" aria-hidden="true"></span>
+        <span class="reveal-name">${esc(d.key)}</span></div>`);
+    } else if (d.key) {
+      lines.push(`<p class="reward">You recovered the <span class="chip key-chip">${esc(d.key)}</span></p>`);
+    }
+    if (ench) {
+      reveals.push(`<div class="reveal-item ench-reveal">
+        <span class="reveal-lbl">New enchantment</span><span class="ench-sigil" aria-hidden="true"></span>
+        <span class="reveal-name">${esc(ench.name)}</span><span class="reveal-text">${esc(ench.text)}</span></div>`);
+    }
     const finale = d.id === DAYS[DAYS.length - 1].id;
-    this.modal(
+    const buttons = ench
+      ? `<button class="btn" data-act="again">Play again</button>
+         <button class="btn" data-act="map">Continue</button>
+         <button class="btn primary" data-act="enchant">Choose enchantments</button>`
+      : `<button class="btn" data-act="again">Play again</button>
+         <button class="btn primary" data-act="map">Continue</button>`;
+    const el = this.modal(
       `<h2>The Circle is sealed</h2><p class="muted">${esc(this.dayLabel())}</p>
+      ${reveals.length ? `<div class="reveal">${reveals.join('')}</div>` : ''}
       ${lines.join('')}
       ${finale ? `<p class="story">${esc(EPILOGUE)}</p>` : ''}
-      <div class="row"><button class="btn" data-act="again">Play again</button>
-      <button class="btn primary" data-act="map">Continue</button></div>`,
+      <div class="row">${buttons}</div>`,
       {
         '[data-act=again]': () => this.startDay(d.id),
-        '[data-act=map]': () => this.showMap(),
+        '[data-act=map]': () => this.showMap(this.takeCelebration()),
+        '[data-act=enchant]': () => {
+          // the map waits underneath; its reveal plays once the menu is closed
+          this.showMap();
+          this.showEnchantments(() => this.showMap(this.takeCelebration()), { highlight: ench.id });
+        },
       },
     );
+    if (ench) el.querySelector('.modal').classList.add('roomy');
+    // reveals rise in one after another, each with its own cue
+    el.querySelectorAll('.reveal-item').forEach((it, i) => it.style.setProperty('--delay', `${0.35 + i * 0.7}s`));
+    if (d.key && first) this.audio.keyChime(0.35);
+    if (ench) this.audio.reward(0.35 + (d.key ? 0.7 : 0));
   }
 
   showFail() {

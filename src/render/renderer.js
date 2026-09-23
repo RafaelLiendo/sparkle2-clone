@@ -1,7 +1,7 @@
 // Level scene renderer. Reads game state; never mutates it.
 
 import { CONFIG, RUNE_PIPS } from '../config.js';
-import { COLORS } from '../defs.js';
+import { COLORS, POWERUPS } from '../defs.js';
 import { makeAbyssLip, makeCanvasEl, paintBackground, paintPathGroove } from './background.js';
 import { drawPowerupIcon, ICON_TINT } from './icons.js';
 import { OrbArt } from './orbArt.js';
@@ -39,6 +39,8 @@ export class Renderer {
     this.layers = null;
     this.layerKey = null;
     this.game = null;
+    // power-up types the player has never collected: their icons carry a name caption
+    this.unseenPowerups = new Set();
     // A lost GPU context also wipes the pre-rendered sprites and layers: rebuild them.
     canvas.addEventListener('contextrestored', () => {
       this.art = new OrbArt();
@@ -237,8 +239,28 @@ export class Renderer {
       const bob = Math.sin(ic.t * 2 + ic.phase) * 3;
       const fadeIn = Math.min(1, ic.t / 0.25);
       const fadeOut = Math.min(1, ic.ttl / 1.2);
-      drawPowerupIcon(ctx, ic.type, ic.x, ic.y + bob, r, t, fadeIn * (0.35 + 0.65 * fadeOut), ic.type === 'colourWipe' ? { color: wipeColor } : null, this.settings.reducedFlashing);
+      const alpha = fadeIn * (0.35 + 0.65 * fadeOut);
+      drawPowerupIcon(ctx, ic.type, ic.x, ic.y + bob, r, t, alpha, ic.type === 'colourWipe' ? { color: wipeColor } : null, this.settings.reducedFlashing);
+      if (this.unseenPowerups.has(ic.type)) this.drawIconCaption(ctx, ic, ic.y + bob + r + 17, alpha);
     }
+  }
+
+  /** First sighting: a quiet engraved caption naming the power-up under its icon. */
+  drawIconCaption(ctx, ic, y, alpha) {
+    const name = POWERUPS[ic.type].name;
+    ctx.save();
+    ctx.globalAlpha = alpha * Math.min(1, ic.t / 0.6);
+    ctx.font = '600 14px Cinzel, Georgia, serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const w = ctx.measureText(name).width + 18;
+    ctx.fillStyle = 'rgba(14,12,9,0.62)';
+    ctx.beginPath();
+    ctx.roundRect(ic.x - w / 2, y - 11, w, 22, 11);
+    ctx.fill();
+    ctx.fillStyle = '#F2D58C';
+    ctx.fillText(name, ic.x, y + 1);
+    ctx.restore();
   }
 
   drawSlinger(ctx, game, t) {
