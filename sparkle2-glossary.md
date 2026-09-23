@@ -645,10 +645,26 @@ reading as a frenetic arcade light show.
 ### 7.1 Orb look
 
 - Opaque lit stone: a dark rim, one small tight specular highlight, an engraved
-  medallion on the face, and a gold inlay band. Base colors are §2.1 exactly, never
+  glyph on the face, and a gold inlay band. Base colors are §2.1 exactly, never
   lightened toward pastel.
 - Orbs **roll** as they travel (surface detail rotating with distance) and cast contact
   shadows — a line of orbs should read as pressed-together solids.
+- **Surface detail (settled):**
+  - Each orb carries a **carved glyph** (one design per color, so color never relies on
+    hue alone) at each of two opposite poles, cut straight into the stone — no gold ring,
+    recessed disc, or shadow around it.
+  - **Exactly one gold inlay band** per orb: the great circle between the two glyphs.
+  - Rolling is driven **only by travel**: the detail turns about the axis across the
+    path at the rolling-without-slipping rate (2 rad per orb traveled). Glyphs move along
+    the line of motion and the band always lies **across the path** — never a random or
+    per-orb tilt.
+  - Detail is geometry **on the sphere**: projected, foreshortened toward the limb,
+    clipped to the silhouette, and darkened by the same limb shading as the stone — it
+    reads as engraved/inlaid, never overhanging or stuck on.
+  - The band reads as **one continuous ring**: where it rolls over the silhouette, its
+    far half fades in as the near half fades out — never half a ring jumping sides.
+  - Queued and in-flight orbs are not rolling: they show a fixed resting pose aligned to
+    the aim / flight direction, with the band as an arc rather than along the outline.
 - Glow shades are emissive accents only (pop VFX, special-orb pulse, power-up icons),
   never a base fill.
 - Avoid anything that produces the bubble/candy read: translucency, rim-light halos,
@@ -703,7 +719,9 @@ Mood and pace direction:
 
 - Backgrounds are **painterly, dim, and essentially static** — mossy standing stones,
   foggy swamp water, root-tangled ruins; deep greens, wet browns, slate blues. The
-  Abyss reads as a carved stone maw; the World Map as hand-drawn parchment. The orbs
+  Abyss reads as a carved stone maw whose lip lies **beneath** the orbs — orbs roll over
+  it and sink by shrinking and darkening, never passing under the rim. The World Map
+  reads as hand-drawn parchment. The orbs
   are the brightest objects on screen — achieved by darkening the world, never by
   making the orbs glassy.
 - Tension is **slow encroachment — dread, not panic**: the player should see failure

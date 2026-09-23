@@ -44,6 +44,9 @@ export class App {
 
     this.fit();
     window.addEventListener('resize', () => this.fit());
+    canvas.addEventListener('contextrestored', () => {
+      this.staticKey = null;
+    });
     this.bindInput();
     this.showTitle();
     requestAnimationFrame((t) => this.frame(t));

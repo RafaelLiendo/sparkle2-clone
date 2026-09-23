@@ -446,7 +446,7 @@ export class Game {
     cy /= run.length;
     const hasBlue = run.some((x) => !x.wild && x.color === BLUE);
     const hasRed = run.some((x) => !x.wild && x.color === RED);
-    const points = run.map((x) => ({ x: x.x, y: x.y, color: x.color, wild: x.wild, s: x.s }));
+    const points = run.map((x) => ({ x: x.x, y: x.y, color: x.color, wild: x.wild, s: x.s, id: x.id, a: track.path.angleAt(x.s) }));
     track.remove(run);
 
     let drop = false;
@@ -479,7 +479,7 @@ export class Game {
   destroyOrbs(track, list, cause) {
     const alive = list.filter((o) => this.isAlive(o));
     if (!alive.length) return 0;
-    this.emit({ type: 'dissolve', cause, points: alive.map((x) => ({ x: x.x, y: x.y, color: x.color, wild: x.wild })) });
+    this.emit({ type: 'dissolve', cause, points: alive.map((x) => ({ x: x.x, y: x.y, color: x.color, wild: x.wild, s: x.s, id: x.id, a: track.path.angleAt(x.s) })) });
     track.remove(alive);
     this.addRune(alive.length);
     return alive.length;

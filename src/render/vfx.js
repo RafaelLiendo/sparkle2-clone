@@ -173,12 +173,12 @@ export class Vfx {
     for (const g of this.ghosts) {
       if (g.t < 0) {
         // not yet dissolving: keep the orb visible
-        art.drawOrb(ctx, g.x, g.y, D, g.color, g.wild, g.s * 2 || 0, 0, t);
+        art.drawOrb(ctx, g.x, g.y, D, g.color, g.wild, g.s * 2 || 0, g.a || 0, t);
         continue;
       }
       const u = g.t / g.dur;
       const scale = 1 + 0.06 * u;
-      art.drawOrb(ctx, g.x, g.y, D * scale, g.color, g.wild, g.s * 2 || 0, 0, t, { alpha: Math.max(0, 1 - u * 1.15) });
+      art.drawOrb(ctx, g.x, g.y, D * scale, g.color, g.wild, g.s * 2 || 0, g.a || 0, t, { alpha: Math.max(0, 1 - u * 1.15) });
       // glow ramps in over 90 ms and out over the rest
       const inA = Math.min(1, g.t / 0.09);
       const outA = Math.max(0, 1 - Math.max(0, g.t - 0.09) / (g.dur - 0.09));

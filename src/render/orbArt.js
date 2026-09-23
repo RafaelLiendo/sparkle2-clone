@@ -6,7 +6,8 @@ import { COLORS } from '../defs.js';
 
 const SPR = 128; // sprite size (px), orb radius 60 inside → drawn at 60 px diameter
 const R = 60;
-const MED_ALPHA = Math.asin(0.42); // medallion angular radius
+/** Sprites carry padding around the sphere: draw them at d * SPRITE_K so the stone radius is exactly d / 2. */
+const SPRITE_K = SPR / (2 * R);
 
 function makeCanvas(w, h = w) {
   const c = typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(w, h) : Object.assign(document.createElement('canvas'), { width: w, height: h });
@@ -239,43 +240,198 @@ const WILD_GLYPH = (g) => {
   }
 };
 
-function medallionSprite(base, lo, glyph) {
-  const S = 64;
-  const c = makeCanvas(S);
+// --- Surface detail as curves on the sphere -----------------------------------
+// Glyphs, the medallion ring and the inlay band are curves ON the sphere: rotated by
+// the roll, projected orthographically and clipped to the front hemisphere, so they
+// foreshorten toward the limb and never leave the silhouette.
+
+const MED_ANG = 0.62; // angular radius of the glyph area around its pole (rad)
+
+/** Records canvas path commands as polylines (so glyphs can be mapped onto the sphere). */
+class PathSampler {
+  constructor() {
+    this.polys = [];
+    this.cur = null;
+    this.x = 0;
+    this.y = 0;
+  }
+
+  beginPath() {}
+
+  moveTo(x, y) {
+    this.cur = [[x, y]];
+    this.polys.push(this.cur);
+    this.x = x;
+    this.y = y;
+  }
+
+  lineTo(x, y) {
+    if (!this.cur) return this.moveTo(x, y);
+    const n = Math.max(1, Math.ceil(Math.hypot(x - this.x, y - this.y) / 0.06));
+    for (let i = 1; i <= n; i++) this.cur.push([this.x + ((x - this.x) * i) / n, this.y + ((y - this.y) * i) / n]);
+    this.x = x;
+    this.y = y;
+  }
+
+  quadraticCurveTo(cx, cy, x, y) {
+    const x0 = this.x;
+    const y0 = this.y;
+    for (let i = 1; i <= 16; i++) {
+      const t = i / 16;
+      const u = 1 - t;
+      this.cur.push([u * u * x0 + 2 * u * t * cx + t * t * x, u * u * y0 + 2 * u * t * cy + t * t * y]);
+    }
+    this.x = x;
+    this.y = y;
+  }
+
+  bezierCurveTo(c1x, c1y, c2x, c2y, x, y) {
+    const x0 = this.x;
+    const y0 = this.y;
+    for (let i = 1; i <= 20; i++) {
+      const t = i / 20;
+      const u = 1 - t;
+      this.cur.push([
+        u * u * u * x0 + 3 * u * u * t * c1x + 3 * u * t * t * c2x + t * t * t * x,
+        u * u * u * y0 + 3 * u * u * t * c1y + 3 * u * t * t * c2y + t * t * t * y,
+      ]);
+    }
+    this.x = x;
+    this.y = y;
+  }
+
+  arc(cx, cy, r, a0, a1) {
+    const sx = cx + Math.cos(a0) * r;
+    const sy = cy + Math.sin(a0) * r;
+    if (this.cur) this.lineTo(sx, sy);
+    else this.moveTo(sx, sy);
+    const n = Math.max(8, Math.ceil((Math.abs(a1 - a0) * r) / 0.06));
+    for (let i = 1; i <= n; i++) {
+      const t = a0 + ((a1 - a0) * i) / n;
+      this.cur.push([cx + Math.cos(t) * r, cy + Math.sin(t) * r]);
+    }
+    this.x = cx + Math.cos(a1) * r;
+    this.y = cy + Math.sin(a1) * r;
+  }
+
+  closePath() {
+    if (this.cur) this.lineTo(this.cur[0][0], this.cur[0][1]);
+  }
+}
+
+/** Unit-sphere point at angular distance rho from the pole (+z), azimuth phi. */
+function polar(rho, phi) {
+  return [Math.sin(rho) * Math.cos(phi), Math.sin(rho) * Math.sin(phi), Math.cos(rho)];
+}
+
+/** Map a glyph drawn in the -1..1 box onto the medallion cap around the pole. */
+function glyphOnSphere(glyph) {
+  const rec = new PathSampler();
+  glyph(rec);
+  return rec.polys.map((poly) => {
+    const out = new Float32Array(poly.length * 3);
+    poly.forEach(([u, v], i) => out.set(polar(Math.hypot(u, v) * MED_ANG * 0.9, Math.atan2(v, u)), i * 3));
+    return out;
+  });
+}
+
+function circleOnSphere(rho, n) {
+  const out = new Float32Array((n + 1) * 3);
+  for (let i = 0; i <= n; i++) out.set(polar(rho, (i / n) * Math.PI * 2), i * 3);
+  return out;
+}
+
+const BAND = circleOnSphere(Math.PI / 2, 72);
+// Resting pose for queued / flying ammo: turned a little so the band shows as an arc
+// (at roll 0 it would lie exactly on the silhouette as an outline).
+const AMMO_ROLL = 0.5;
+
+/**
+ * Rotation for the orb's current pose: a pure roll about the axis across the path, so
+ * the medallions travel along the line of motion and the band always lies across the
+ * track. Local frame: x forward along the path, y across it, z toward the viewer.
+ * `flip` turns the pose half-way round, bringing the opposite medallion to the pole.
+ */
+function poseMatrix(roll, flip) {
+  const c = Math.cos(roll);
+  const s = Math.sin(roll);
+  // M = Ry(roll) [· Ry(π)]
+  return flip ? [-c, 0, -s, 0, 1, 0, s, 0, -c] : [c, 0, s, 0, 1, 0, -s, 0, c];
+}
+
+/** Visible (front-hemisphere) portions of sphere polylines as a Path2D. */
+function frontPath(polys, m, r) {
+  const path = new Path2D();
+  for (const pts of polys) {
+    let down = false;
+    for (let i = 0; i < pts.length; i += 3) {
+      const x = pts[i];
+      const y = pts[i + 1];
+      const z = pts[i + 2];
+      if (m[6] * x + m[7] * y + m[8] * z <= 0.02) {
+        down = false;
+        continue;
+      }
+      const px = (m[0] * x + m[1] * y + m[2] * z) * r;
+      const py = (m[3] * x + m[4] * y + m[5] * z) * r;
+      if (down) path.lineTo(px, py);
+      else path.moveTo(px, py);
+      down = true;
+    }
+  }
+  return path;
+}
+
+// Depth buckets for the band: [min segment depth, alpha]. The band wraps a little past
+// the silhouette, fading with depth, so as it rolls over the edge its far half fades
+// in while the near half fades out — one continuous ring, never a half that jumps sides.
+const BAND_FADE = [
+  [0.03, 1],
+  [-0.1, 0.65],
+  [-0.22, 0.3],
+];
+
+/** Band polyline split into depth-faded Path2D buckets (parallel to BAND_FADE). */
+function bandPaths(pts, m, r) {
+  const paths = BAND_FADE.map(() => new Path2D());
+  let px0 = 0;
+  let py0 = 0;
+  let pz0 = 0;
+  for (let i = 0; i < pts.length; i += 3) {
+    const x = pts[i];
+    const y = pts[i + 1];
+    const z = pts[i + 2];
+    const px = (m[0] * x + m[1] * y + m[2] * z) * r;
+    const py = (m[3] * x + m[4] * y + m[5] * z) * r;
+    const pz = m[6] * x + m[7] * y + m[8] * z;
+    if (i > 0) {
+      const mid = (pz + pz0) / 2;
+      const b = BAND_FADE.findIndex(([min]) => mid >= min);
+      if (b >= 0) {
+        paths[b].moveTo(px0, py0);
+        paths[b].lineTo(px, py);
+      }
+    }
+    px0 = px;
+    py0 = py;
+    pz0 = pz;
+  }
+  return paths;
+}
+
+/** Limb darkening laid over the surface detail so it sits under the same shading. */
+function limbSprite() {
+  const c = makeCanvas(SPR);
   const g = c.getContext('2d');
-  const cx = S / 2;
-  const m = S * 0.44;
-  // recessed disc
-  const disc = g.createRadialGradient(cx - m * 0.2, cx - m * 0.25, m * 0.1, cx, cx, m);
-  disc.addColorStop(0, mix(base, '#000000', 0.18));
-  disc.addColorStop(1, mix(lo, '#000000', 0.25));
-  g.fillStyle = disc;
+  const cx = SPR / 2;
+  const grad = g.createRadialGradient(cx - R * 0.15, cx - R * 0.18, R * 0.55, cx, cx, R);
+  grad.addColorStop(0, 'rgba(0,0,0,0)');
+  grad.addColorStop(0.7, 'rgba(0,0,0,0.18)');
+  grad.addColorStop(1, 'rgba(0,0,0,0.55)');
+  g.fillStyle = grad;
   g.beginPath();
-  g.arc(cx, cx, m, 0, Math.PI * 2);
+  g.arc(cx, cx, R, 0, Math.PI * 2);
   g.fill();
-  // gold ring
-  g.strokeStyle = 'rgba(214,176,92,0.85)';
-  g.lineWidth = 2.4;
-  g.beginPath();
-  g.arc(cx, cx, m - 1.5, 0, Math.PI * 2);
-  g.stroke();
-  // engraving: light lower edge + dark cut (carved look)
-  const draw = (dx, dy, color, w) => {
-    g.save();
-    g.translate(cx + dx, cx + dy);
-    g.scale(m * 0.72, m * 0.72);
-    g.beginPath();
-    glyph(g);
-    g.lineWidth = w / (m * 0.72);
-    g.lineCap = 'round';
-    g.lineJoin = 'round';
-    g.strokeStyle = color;
-    g.stroke();
-    g.restore();
-  };
-  draw(0.9, 1.2, 'rgba(255,240,210,0.28)', 3.4);
-  draw(0, 0, 'rgba(12,8,4,0.75)', 3.2);
-  draw(0, 0, 'rgba(230,190,110,0.35)', 1.1);
   return c;
 }
 
@@ -310,10 +466,11 @@ export class OrbArt {
   constructor() {
     this.base = COLORS.map((c, i) => sphereSprite(c.base, c.hi, c.lo, 1000 + i * 77));
     this.glow = COLORS.map((c) => glowSprite(c.glow));
-    this.medallion = COLORS.map((c, i) => medallionSprite(c.base, c.lo, GLYPHS[i]));
+    this.glyphGeo = GLYPHS.map((gl) => glyphOnSphere(gl));
     this.glyphGlow = COLORS.map((c, i) => glyphGlowSprite(GLYPHS[i], c.glow));
     this.wildBase = sphereSprite('#8A8374', '#D8CFBE', '#3A362E', 4242);
-    this.wildMedallion = medallionSprite('#8A8374', '#3A362E', WILD_GLYPH);
+    this.wildGlyphGeo = glyphOnSphere(WILD_GLYPH);
+    this.limb = limbSprite();
     this.wildGlyphGlow = glyphGlowSprite(WILD_GLYPH, '#FFF2D0');
     this.prism = prismSprite();
     this.shade = shadeSprite();
@@ -347,22 +504,24 @@ export class OrbArt {
    */
   drawOrb(ctx, x, y, d, color, wild, roll, angle, time, opts = {}) {
     const half = d / 2;
+    const sd = d * SPRITE_K;
+    const sh = sd / 2;
     const alpha = opts.alpha ?? 1;
     ctx.globalAlpha = alpha;
     if (wild) {
-      ctx.drawImage(this.wildBase, x - half, y - half, d, d);
+      ctx.drawImage(this.wildBase, x - sh, y - sh, sd, sd);
       ctx.save();
       ctx.translate(x, y);
       ctx.rotate(time * 0.35);
       ctx.globalAlpha = alpha * 0.8;
-      ctx.drawImage(this.prism, -half, -half, d, d);
+      ctx.drawImage(this.prism, -sh, -sh, sd, sd);
       ctx.restore();
       ctx.globalAlpha = alpha;
-      ctx.drawImage(this.shade, x - half, y - half, d, d);
+      ctx.drawImage(this.shade, x - sh, y - sh, sd, sd);
     } else {
-      ctx.drawImage(this.base[color], x - half, y - half, d, d);
+      ctx.drawImage(this.base[color], x - sh, y - sh, sd, sd);
     }
-    this.drawSurface(ctx, x, y, d, wild ? this.wildMedallion : this.medallion[color], roll, angle, alpha);
+    this.drawSurface(ctx, x, y, d, wild ? this.wildGlyphGeo : this.glyphGeo[color], roll, angle, alpha);
     if (opts.dark) {
       ctx.globalAlpha = opts.dark * alpha;
       ctx.fillStyle = '#050403';
@@ -371,7 +530,7 @@ export class OrbArt {
       ctx.fill();
       ctx.globalAlpha = alpha;
     }
-    ctx.drawImage(this.highlight, x - half, y - half, d, d);
+    ctx.drawImage(this.highlight, x - sh, y - sh, sd, sd);
     if (opts.flash) {
       ctx.globalCompositeOperation = 'lighter';
       ctx.globalAlpha = opts.flash * 0.5 * alpha;
@@ -382,62 +541,82 @@ export class OrbArt {
     ctx.globalAlpha = 1;
   }
 
-  /** Rolling medallions (two, opposite) and the gold inlay band between them. */
-  drawSurface(ctx, x, y, d, medallion, roll, angle, alpha) {
+  /**
+   * Engraved surface detail that rolls with the orb: two opposite carved glyphs and a
+   * gold inlay band on the equator between them. Everything is projected from the
+   * sphere and clipped to it.
+   */
+  drawSurface(ctx, x, y, d, glyphGeo, roll, angle, alpha) {
     const r = d / 2;
+    const k = d / 60;
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(angle);
-    const sin = Math.sin(roll);
-    const cos = Math.cos(roll);
-    // Band: great circle perpendicular to the medallion axis → half-ellipse arc.
-    const rx = Math.abs(cos) * r * 0.97;
-    const visiblePlusX = -Math.sign(sin * cos) >= 0;
-    // Near the silhouette the band is edge-on: fade it so it never reads as an outline.
-    ctx.globalAlpha = alpha * 0.85 * Math.min(1, Math.abs(sin) / 0.5);
-    ctx.lineWidth = d * 0.06;
-    ctx.strokeStyle = 'rgba(58,40,14,0.7)';
     ctx.beginPath();
-    if (rx > 0.5) ctx.ellipse(0, 0, rx, r * 0.97, 0, visiblePlusX ? -Math.PI / 2 : Math.PI / 2, visiblePlusX ? Math.PI / 2 : (3 * Math.PI) / 2);
-    else {
-      ctx.moveTo(0, -r * 0.97);
-      ctx.lineTo(0, r * 0.97);
-    }
-    ctx.stroke();
-    ctx.lineWidth = d * 0.035;
-    ctx.strokeStyle = 'rgba(206,164,74,0.9)';
-    ctx.stroke();
-    // Medallion facing the viewer (the one with cos > 0).
-    const c = cos >= 0 ? cos : -cos;
-    const sx = cos >= 0 ? sin : -sin;
-    const k = Math.cos(MED_ALPHA);
-    const m = d * 0.5;
-    const fade = Math.max(0, Math.min(1, (c - 0.2) / 0.35));
-    ctx.globalAlpha = alpha * fade;
-    ctx.translate(r * k * sx, 0);
-    ctx.scale(Math.max(0.02, c), 1);
-    ctx.drawImage(medallion, -m * 0.95, -m * 0.95, m * 1.9, m * 1.9);
-    ctx.restore();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
     ctx.globalAlpha = alpha;
+    // Light comes from the upper left of the screen; express it in the rotated frame.
+    const ca = Math.cos(angle);
+    const sa = Math.sin(angle);
+    const lx = -0.6 * ca - 0.8 * sa;
+    const ly = 0.6 * sa - 0.8 * ca;
+
+    const m0 = poseMatrix(roll, false);
+    bandPaths(BAND, m0, r * 0.99).forEach((band, b) => {
+      const fade = BAND_FADE[b][1] * alpha;
+      ctx.globalAlpha = fade;
+      ctx.strokeStyle = 'rgba(30,20,6,0.45)';
+      ctx.lineWidth = 2.4 * k;
+      ctx.stroke(band);
+      ctx.strokeStyle = 'rgba(190,150,66,0.7)';
+      ctx.lineWidth = 1.1 * k;
+      ctx.stroke(band);
+    });
+    ctx.globalAlpha = alpha;
+
+    for (const flip of [false, true]) {
+      const m = flip ? poseMatrix(roll, true) : m0;
+      if (m[8] < -Math.sin(MED_ANG)) continue; // glyph entirely behind the sphere
+      // carved glyph: lit lip on the side away from the light, then the dark cut
+      const glyph = frontPath(glyphGeo, m, r);
+      ctx.save();
+      ctx.translate(-lx * 0.9 * k, -ly * 0.9 * k);
+      ctx.strokeStyle = 'rgba(255,238,200,0.22)';
+      ctx.lineWidth = 2.6 * k;
+      ctx.stroke(glyph);
+      ctx.restore();
+      ctx.strokeStyle = 'rgba(14,9,4,0.72)';
+      ctx.lineWidth = 2.4 * k;
+      ctx.stroke(glyph);
+    }
+    ctx.restore();
+    // The same limb shading lies over the detail as over the stone.
+    ctx.globalAlpha = alpha;
+    ctx.drawImage(this.limb, x - r * SPRITE_K, y - r * SPRITE_K, d * SPRITE_K, d * SPRITE_K);
   }
 
   /** Slinger queue / projectile orb (ammo), special effects shown on the orb itself. */
   drawAmmo(ctx, ammo, x, y, d, time, angle = 0, reduced = false) {
     const half = d / 2;
+    const sd = d * SPRITE_K;
+    const sh = sd / 2;
     const k = ammo.kind;
     if (k === 'normal' || k === 'splash') {
-      ctx.drawImage(this.base[ammo.color], x - half, y - half, d, d);
-      this.drawSurface(ctx, x, y, d, this.medallion[ammo.color], time * 0.6, angle, 1);
-      ctx.drawImage(this.highlight, x - half, y - half, d, d);
+      ctx.drawImage(this.base[ammo.color], x - sh, y - sh, sd, sd);
+      this.drawSurface(ctx, x, y, d, this.glyphGeo[ammo.color], AMMO_ROLL, angle, 1);
+      ctx.drawImage(this.highlight, x - sh, y - sh, sd, sd);
       if (k === 'splash') this.drawDroplets(ctx, x, y, d, ammo.color, time);
       return;
     }
     if (k === 'wild') {
-      this.drawOrb(ctx, x, y, d, 0, true, time * 0.6, angle, time);
+      this.drawOrb(ctx, x, y, d, 0, true, AMMO_ROLL, angle, time);
       return;
     }
-    ctx.drawImage(this.special[k], x - half, y - half, d, d);
-    ctx.drawImage(this.highlight, x - half, y - half, d, d);
+    ctx.drawImage(this.special[k], x - sh, y - sh, sd, sd);
+    ctx.drawImage(this.highlight, x - sh, y - sh, sd, sd);
     if (k === 'firebolt') this.drawFlames(ctx, x, y, d, time, '#FFB347', '#FFE0A0', reduced);
     else if (k === 'purple') this.drawFlames(ctx, x, y, d, time, '#B266FF', '#E8C8FF', reduced);
     else if (k === 'frost') this.drawFrost(ctx, x, y, d, time);

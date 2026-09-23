@@ -39,6 +39,12 @@ export class Renderer {
     this.layers = null;
     this.layerKey = null;
     this.game = null;
+    // A lost GPU context also wipes the pre-rendered sprites and layers: rebuild them.
+    canvas.addEventListener('contextrestored', () => {
+      this.art = new OrbArt();
+      this.vfx.art = this.art;
+      this.layerKey = null;
+    });
   }
 
   /** Match the backing store to the displayed size (DPR-aware, capped at 2×). */
@@ -149,6 +155,9 @@ export class Renderer {
       if (alpha <= 0) continue;
       items.push({ orb, x, y, s, size, dark, alpha });
     }
+    // The maw's stone lip lies under the orbs; sinking orbs shrink and darken instead.
+    const lip = this.layers.lips[track.index];
+    ctx.drawImage(lip.canvas, path.end.x - lip.size / 2, path.end.y - lip.size / 2);
     for (const it of items) if (!it.dark) art.drawShadow(ctx, it.x, it.y, it.size);
     for (const it of items) {
       art.drawOrb(ctx, it.x, it.y, it.size, it.orb.color, it.orb.wild, it.s * 2, path.angleAt(it.s), t, {
@@ -158,8 +167,6 @@ export class Renderer {
       });
     }
     for (const p of track.pushers) this.drawPusher(ctx, path, p);
-    const lip = this.layers.lips[track.index];
-    ctx.drawImage(lip.canvas, path.end.x - lip.size / 2, path.end.y - lip.size / 2);
   }
 
   /** Dread, not panic: the maw darkens and a slow violet haze gathers while orbs sink. */
