@@ -2,7 +2,7 @@
 
 import { Audio } from './audio.js';
 import { CONFIG } from './config.js';
-import { ENCHANT_BY_ID, ENCHANTMENTS, MAX_LOADOUT, POWERUP_IDS } from './defs.js';
+import { DIFFICULTIES, DIFFICULTY_BY_ID, ENCHANT_BY_ID, ENCHANTMENTS, MAX_LOADOUT, POWERUP_IDS } from './defs.js';
 import { Game } from './game/game.js';
 import { buildLevel, DAY_BY_ID, DAYS, EPILOGUE, powerupsForTier, PROLOGUE } from './levels.js';
 import { makeCanvasEl, paintBackground } from './render/background.js';
@@ -13,6 +13,7 @@ import { paintMap } from './ui/mapArt.js';
 const W = CONFIG.canvasW;
 const H = CONFIG.canvasH;
 const STEP = 1 / CONFIG.simHz;
+const TITLE_SPIN = 0.12; // title-ring angular speed (rad/s) before the difficulty multiplier
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
@@ -41,6 +42,8 @@ export class App {
     this.staticLayer = null;
     this.staticKey = null;
     this.fps = 0;
+    this.titlePhase = 0;
+    this.titleSpin = null;
 
     this.fit();
     window.addEventListener('resize', () => this.fit());
@@ -200,12 +203,12 @@ export class App {
       this.renderer.draw(this.game, this.time, { showGuide: showGuide && !this.paused });
       if (this.debug) this.drawDebug();
     } else {
-      this.drawStatic();
+      this.drawStatic(dt);
     }
     requestAnimationFrame((t) => this.frame(t));
   }
 
-  drawStatic() {
+  drawStatic(dt) {
     const key = `${this.scene}:${this.canvas.width}:${this.save.completed.length}`;
     if (this.staticKey !== key) {
       const layer = makeCanvasEl(this.canvas.width, this.canvas.height);
@@ -219,21 +222,26 @@ export class App {
     }
     this.ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.ctx.drawImage(this.staticLayer, 0, 0);
-    if (this.scene === 'title') this.drawTitleOrnament();
+    if (this.scene === 'title') this.drawTitleOrnament(dt);
   }
 
-  drawTitleOrnament() {
+  drawTitleOrnament(dt) {
     const ctx = this.ctx;
     const k = this.canvas.width / W;
     ctx.setTransform(k, 0, 0, k, 0, 0);
     const t = this.time;
     const cx = W / 2;
     const cy = 250;
-    // a slow ring of stone orbs circling the title
+    // a slow ring of stone orbs circling the title, spinning faster on harder difficulties;
+    // the spin eases toward its target so switching difficulty never jumps the ring
+    const target = TITLE_SPIN * (CONFIG.difficultySpeed[this.settings.difficulty] ?? 1);
+    this.titleSpin ??= target;
+    this.titleSpin += (target - this.titleSpin) * Math.min(1, dt * 3);
+    this.titlePhase += this.titleSpin * dt;
     const art = this.renderer.art;
     const n = 14;
     for (let i = 0; i < n; i++) {
-      const a = (i / n) * Math.PI * 2 + t * 0.12;
+      const a = (i / n) * Math.PI * 2 + this.titlePhase;
       const x = cx + Math.cos(a) * 250;
       const y = cy + Math.sin(a) * 120;
       const depth = (Math.sin(a) + 1) / 2;
@@ -284,6 +292,27 @@ export class App {
     }
   }
 
+  /** Normal / Hard / Nightmare selector; wire its buttons to `pickDifficulty`. */
+  difficultyPicker() {
+    const cur = this.settings.difficulty;
+    const btns = DIFFICULTIES.map(
+      (d) => `<button class="seg-btn" data-diff="${d.id}" role="radio" aria-checked="${d.id === cur}">${esc(d.name)}</button>`,
+    ).join('');
+    return `<div class="difficulty"><span class="lbl">Difficulty</span><div class="seg" role="radiogroup" aria-label="Difficulty">${btns}</div></div>`;
+  }
+
+  pickDifficulty(btn) {
+    this.settings.difficulty = btn.dataset.diff;
+    this.persist();
+    btn.parentElement.querySelectorAll('[data-diff]').forEach((b) => b.setAttribute('aria-checked', String(b === btn)));
+  }
+
+  /** Day name plus the difficulty the running game was started on. */
+  dayLabel() {
+    const diff = DIFFICULTY_BY_ID[this.game?.difficulty];
+    return diff ? `${this.day.name} · ${diff.name}` : this.day.name;
+  }
+
   showTitle() {
     this.scene = 'title';
     this.game = null;
@@ -299,12 +328,14 @@ export class App {
           <button class="btn" data-act="enchant">Enchantments</button>
           <button class="btn" data-act="options">Options</button>
         </nav>
+        ${this.difficultyPicker()}
         <p class="hint">Aim with the mouse · click to fire · right-click, wheel or Space to swap</p>
       </div>`);
     this.bindClicks({
       '[data-act=story]': () => this.showMap(),
       '[data-act=enchant]': () => this.showEnchantments(() => this.showTitle()),
       '[data-act=options]': () => this.showOptions(() => this.showTitle()),
+      '[data-diff]': (e, el) => this.pickDifficulty(el),
     });
   }
 
@@ -450,6 +481,8 @@ export class App {
     const o = this.settings;
     const el = this.modal(
       `<h2>Options</h2>
+      ${this.difficultyPicker()}
+      <p class="muted">Applies from the next day you begin.</p>
       <label class="opt"><input type="checkbox" data-opt="reducedFlashing" ${o.reducedFlashing ? 'checked' : ''}>
         <span>Reduced Flashing <em>— softer glows, fewer rings and motes</em></span></label>
       <label class="opt"><input type="checkbox" data-opt="muted" ${o.muted ? 'checked' : ''}><span>Mute all sound</span></label>
@@ -464,6 +497,7 @@ export class App {
           this.closeModal();
           onDone();
         },
+        '[data-diff]': (e, b) => this.pickDifficulty(b),
         '[data-act=reset]': (e, b) => {
           if (b.dataset.armed) {
             this.save.completed = [];
@@ -502,6 +536,7 @@ export class App {
       seed: (Math.random() * 2 ** 31) | 0,
       enchantments: this.save.loadout,
       powerups: powerupsForTier(day.tier),
+      difficulty: this.settings.difficulty,
     });
     this.renderer.setGame(this.game);
     this.scene = 'level';
@@ -513,7 +548,7 @@ export class App {
     this.setUI(`
       <div class="screen level-screen">
         <button class="icon-btn pause-btn" data-act="pause" aria-label="Pause">❚❚</button>
-        <div class="day-banner">${esc(day.name)}</div>
+        <div class="day-banner">${esc(this.dayLabel())}</div>
       </div>`);
     this.bindClicks({ '[data-act=pause]': () => this.pauseGame() });
   }
@@ -523,7 +558,7 @@ export class App {
     this.paused = true;
     this.game.pause();
     this.modal(
-      `<h2>Paused</h2><p class="muted">${esc(this.day.name)}</p>
+      `<h2>Paused</h2><p class="muted">${esc(this.dayLabel())}</p>
       <div class="col">
         <button class="btn primary" data-act="resume">Resume</button>
         <button class="btn" data-act="restart">Restart the day</button>
@@ -562,7 +597,7 @@ export class App {
     if (first && d.unlock) lines.push(`<p class="reward">New enchantment: <span class="chip">${esc(ENCHANT_BY_ID[d.unlock].name)}</span> <em>${esc(ENCHANT_BY_ID[d.unlock].text)}</em></p>`);
     const finale = d.id === DAYS[DAYS.length - 1].id;
     this.modal(
-      `<h2>The Circle is sealed</h2><p class="muted">${esc(d.name)}</p>
+      `<h2>The Circle is sealed</h2><p class="muted">${esc(this.dayLabel())}</p>
       ${lines.join('')}
       ${finale ? `<p class="story">${esc(EPILOGUE)}</p>` : ''}
       <div class="row"><button class="btn" data-act="again">Play again</button>
@@ -576,7 +611,7 @@ export class App {
 
   showFail() {
     this.modal(
-      `<h2>The Abyss has taken the line</h2><p class="muted">${esc(this.day.name)}</p>
+      `<h2>The Abyss has taken the line</h2><p class="muted">${esc(this.dayLabel())}</p>
       <div class="row"><button class="btn" data-act="map">Retreat to the Map</button>
       <button class="btn primary" data-act="again">Try again</button></div>`,
       {

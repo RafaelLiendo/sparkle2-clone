@@ -10,7 +10,7 @@ Plain ES modules + Canvas 2D + WebAudio. No dependencies, no build step.
 
 ```sh
 npm start        # serves on http://localhost:5173
-npm test         # 42 simulation tests (node:test)
+npm test         # 44 simulation tests (node:test)
 ```
 
 Any static file server works too; ES modules just need `http://`, not `file://`.
@@ -24,11 +24,14 @@ Any static file server works too; ES modules just need `http://`, not `file://`.
 | Swap | right click or mouse wheel | tap the Slinger | Space or S |
 | Pause | pause button | pause button | Esc or P |
 
+**Difficulty** — Normal, Hard or Nightmare — is chosen on the title screen or in Options and applies from the next day started; story progress is shared.
+
 Options include **Reduced Flashing** (softer glows, fewer rings and motes — appearance only), volume and mute.
 
 ### Dev URL parameters
 
 - `?day=d5` — jump straight into a day.
+- `?difficulty=normal|hard|nightmare` — override the saved difficulty for this session.
 - `?scene=map|enchant|options` — open a screen directly.
 - `?debug` — stats overlay; while playing, keys `1…9 0 q w e r t` drop each of the 15 power-ups at the cursor, `u` drops a random one, `y` fills the Rune Circle.
 - `?tune.<key>=<value>` — override any tunable, e.g. `?tune.abyssGrace=5&tune.speedParams.base=2`.
@@ -64,6 +67,8 @@ given seed. It emits events that the renderer and audio consume.
 - **Line speed.** `CONFIG.speedParams.base` keeps the canonical 4 orbs/s. Each day overrides it
   through its per-level `speedParams` (0.7–1.0 orbs/s): with 60 px orbs, 4 orbs/s crosses a whole
   path in about 15 s. Rollout (×5), danger crawl (×0.5) and 0.4 s smoothing apply as specified.
+  Difficulty then multiplies that per-day base (`CONFIG.difficultySpeed`): Normal ×1, Hard ×2,
+  Nightmare ×3. Everything else (shots, recoil, Backwards, drain) keeps its canonical speed.
 - **Settle deferral** (§3 Wild) applies to any shot whose run touches a colour-linked,
   attracting gap edge, not only Wilds. The shot resolves once the snap lands, as the shot's own match.
 - **Wild pops** are real pops but combo-neutral, so they never drop a power-up and so never recoil.

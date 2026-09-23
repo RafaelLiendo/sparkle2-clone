@@ -114,6 +114,10 @@ export const CONFIG = {
   retreatSpeed: -4,
   retreatDuration: 2.5,
 
+  // --- Difficulty --------------------------------------------------------------
+  // Line-speed multiplier on each day's speedParams.base.
+  difficultySpeed: { normal: 2, hard: 3, nightmare: 4 },
+
   // --- Simulation --------------------------------------------------------------
   simHz: 120,
 };

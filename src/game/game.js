@@ -12,7 +12,8 @@ import { sameColor, Track } from './track.js';
 export class Game {
   /**
    * @param {object} level level definition (see levels.js)
-   * @param {{seed?:number, enchantments?:string[], powerups?:string[]}} opts
+   * @param {{seed?:number, enchantments?:string[], powerups?:string[], difficulty?:string}} opts
+   *        `difficulty` scales line speed by `CONFIG.difficultySpeed`; omitted means ×1.
    */
   constructor(level, opts = {}) {
     this.level = level;
@@ -42,7 +43,8 @@ export class Game {
     let colors = level.colors.slice();
     if (e.redNoMore && colors.length > 2) colors = colors.filter((c) => c !== RED);
     this.lineColors = colors;
-    this.speedBase = level.speed?.base ?? CONFIG.speedParams.base;
+    this.difficulty = opts.difficulty ?? null;
+    this.speedBase = (level.speed?.base ?? CONFIG.speedParams.base) * (CONFIG.difficultySpeed[this.difficulty] ?? 1);
     this.enchantMult =
       (e.tar ? CONFIG.tarMult : 1) * (e.tranquility ? CONFIG.tranquilityMult : 1) * (e.redNoMore ? CONFIG.redNoMoreMult : 1);
 

@@ -1,5 +1,6 @@
 import { App } from './app.js';
 import { applyTuningOverrides } from './config.js';
+import { DIFFICULTY_BY_ID } from './defs.js';
 
 applyTuningOverrides(location.search);
 const params = new URLSearchParams(location.search);
@@ -11,6 +12,13 @@ const app = new App({
   debug: params.has('debug'),
 });
 
+// `?difficulty=hard` overrides the saved difficulty for this session (it reaches the save
+// only if something else persists meanwhile).
+const difficulty = params.get('difficulty');
+if (DIFFICULTY_BY_ID[difficulty]) {
+  app.settings.difficulty = difficulty;
+  app.showTitle();
+}
 // `?day=d5` jumps straight into a day (handy for testing).
 const day = params.get('day');
 if (day) app.startDay(day);

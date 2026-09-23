@@ -95,3 +95,11 @@ export const ENCHANTMENTS = [
 
 export const ENCHANT_BY_ID = Object.fromEntries(ENCHANTMENTS.map((e) => [e.id, e]));
 export const MAX_LOADOUT = 4;
+
+/** Difficulty levels; each scales line speed by `CONFIG.difficultySpeed[id]`. */
+export const DIFFICULTIES = [
+  { id: 'normal', name: 'Normal' },
+  { id: 'hard', name: 'Hard' },
+  { id: 'nightmare', name: 'Nightmare' },
+];
+export const DIFFICULTY_BY_ID = Object.fromEntries(DIFFICULTIES.map((d) => [d.id, d]));

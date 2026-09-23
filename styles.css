@@ -415,6 +415,46 @@ button:focus-visible {
   flex: 1;
   accent-color: var(--gold);
 }
+.difficulty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 12px 0;
+}
+.difficulty .lbl {
+  color: var(--ink-dim);
+  font-size: 17px;
+}
+.seg {
+  display: inline-flex;
+  border: 1px solid #5d5440;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 3px 8px var(--shadow);
+}
+.seg-btn {
+  font-family: Cinzel, Georgia, serif;
+  font-size: 15px;
+  letter-spacing: 0.05em;
+  color: var(--ink-dim);
+  background: linear-gradient(#3b382f, #24221c);
+  border: 0;
+  padding: 7px 16px;
+  cursor: pointer;
+  transition: color 0.2s, background 0.2s;
+}
+.seg-btn + .seg-btn {
+  border-left: 1px solid #5d5440;
+}
+.seg-btn:hover {
+  color: var(--gold-hi);
+}
+.seg-btn[aria-checked='true'] {
+  color: var(--gold-hi);
+  background: linear-gradient(#5a4f36, #342c1e);
+  box-shadow: inset 0 0 0 1px var(--gold);
+}
 .danger-zone {
   margin-top: 16px;
   text-align: left;

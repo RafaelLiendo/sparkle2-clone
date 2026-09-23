@@ -1,7 +1,7 @@
 // Progress persistence (localStorage, guarded — the game runs fine without it).
 // Meta-progression is level-completion-gated only (§5): no currency anywhere.
 
-import { MAX_LOADOUT } from './defs.js';
+import { DIFFICULTY_BY_ID, MAX_LOADOUT } from './defs.js';
 import { DAYS } from './levels.js';
 
 const KEY = 'sparkle2clone.save.v1';
@@ -11,7 +11,7 @@ export function defaultSave() {
     completed: [],
     loadout: [],
     seenPrologue: false,
-    options: { reducedFlashing: false, musicVolume: 0.6, sfxVolume: 0.85, muted: false },
+    options: { reducedFlashing: false, musicVolume: 0.6, sfxVolume: 0.85, muted: false, difficulty: 'normal' },
   };
 }
 
@@ -21,10 +21,12 @@ export function loadSave() {
     const raw = localStorage.getItem(KEY);
     if (!raw) return base;
     const data = JSON.parse(raw);
+    const options = { ...base.options, ...(data.options || {}) };
+    if (!DIFFICULTY_BY_ID[options.difficulty]) options.difficulty = base.options.difficulty;
     return {
       ...base,
       ...data,
-      options: { ...base.options, ...(data.options || {}) },
+      options,
       completed: Array.isArray(data.completed) ? data.completed : [],
       loadout: Array.isArray(data.loadout) ? data.loadout.slice(0, MAX_LOADOUT) : [],
     };

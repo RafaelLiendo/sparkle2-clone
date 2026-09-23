@@ -183,3 +183,26 @@ test('a faster rear line overtaking a front pusher destroys it and merges the li
   run(g, 12);
   assert.equal(t.pushers.length, 1, 'overtaken pusher destroyed');
 });
+
+test('difficulty multiplies the level line speed; omitted means ×1', () => {
+  const plain = makeGame({ base: 0.75 });
+  assert.equal(plain.speedBase, 0.75);
+  for (const [id, mult] of Object.entries(CONFIG.difficultySpeed)) {
+    const g = makeGame({ base: 0.75 }, { difficulty: id });
+    assert.equal(g.difficulty, id);
+    assert.ok(Math.abs(g.speedBase - 0.75 * mult) < 1e-9, `${id} ×${mult}`);
+  }
+  assert.deepEqual(CONFIG.difficultySpeed, { normal: 2, hard: 3, nightmare: 4 });
+});
+
+test('a harder difficulty drives the line proportionally faster', () => {
+  const speed = (difficulty) => {
+    const g = makeGame({ length: 60, waves: [{ stock: 30 }] }, { difficulty });
+    run(g, 0.2);
+    return g.tracks[0].pushers[0].speed;
+  };
+  const normal = speed('normal');
+  assert.ok(normal > 0);
+  assert.ok(Math.abs(speed('hard') / normal - 1.5) < 1e-9);
+  assert.ok(Math.abs(speed('nightmare') / normal - 2) < 1e-9);
+});
