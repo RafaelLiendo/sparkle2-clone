@@ -274,6 +274,12 @@ export class Audio {
     this.shimmer(5, 0.025, when + 0.25);
   }
 
+  /** A recovered key lands in its key-ring slot: a low clack and a warm undertone. */
+  keySettle(when = 0) {
+    this.click(0.22, 0.62, when);
+    this.softTone(293.66, 1.6, 0.03, 'sine', this.sfx, when);
+  }
+
   /** World Map after a first clear: the route inks onward. */
   mapReveal() {
     this.softTone(329.63, 1.8, 0.03, 'triangle', this.sfx, 0.3);

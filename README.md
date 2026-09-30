@@ -11,7 +11,7 @@ Plain ES modules + Canvas 2D + WebAudio. No dependencies, no build step.
 ```sh
 npm start        # serves on http://localhost:5173
 npm run build    # bundles everything into a single dist/index.html (esbuild)
-npm test         # 63 simulation, progress and touch-gesture tests (node:test)
+npm test         # 67 simulation, progress and touch-gesture tests (node:test)
 ```
 
 Any static file server works too; ES modules just need `http://`, not `file://`. The built `dist/index.html` is self-contained and opens directly from disk (fonts still load from Google Fonts). `dist/` also holds the web app manifest and icons for Add to Home Screen.
@@ -55,12 +55,13 @@ Options include **Reduced Flashing** (softer glows, fewer rings and motes — ap
 
 ### Progress feedback
 
-- **Day intro** shows the day's stones, marks any new colour, and lists the power-ups that join the drops from that day on.
+- **Keys** always appear as a key icon, never as text. Each of the five has its own gem colour: Moss green, Tides blue, Embers amber, Stars silver, Night violet. Their names appear only in tooltips and for screen readers.
+- **Day intro** shows the day's stones, marks any new colour, and lists the power-ups that join the drops from that day on. A key day shows its key on a medallion in the corner, as an outline until recovered and in gold after. The enchantment the day unlocks sits on its own card.
 - **Level banner** repeats "New: Purple stones" before the line arrives when a day adds a colour.
 - **First sighting**: a power-up icon carries its name until you collect that power-up once.
-- **Win reveal**: a recovered key or a new enchantment rises in with its own chime. **Choose enchantments** opens the menu with the new card focused. Nothing is equipped for you.
+- **Win reveal**: on a first clear, a recovered key turns into view and settles into the five-slot key ring, then the new enchantment rises in below. Each has its own cue. **Choose enchantments** opens the menu with the new card focused. Nothing is equipped for you.
 - **"New" tags** stay on enchantments until you have looked at them in the menu, and the Enchantments buttons show a gold dot until then.
-- **World Map**: after a first clear, the cleared seal turns, newly reachable days unveil in turn and a recovered key settles into its slot.
+- **World Map**: a seal's colour shows the day's state: green is cleared, red is ready to play, grey is locked. A cleared day carries a tick. A key day carries its key, pressed into the wax until recovered and gold after. A legend under the map's title explains the seals, and the key ring sits at the top. After a first clear, the cleared seal turns, newly reachable days unveil in turn and a recovered key drops into its slot.
 - All of it stays within §7.6: soft fades, no flashes. Reduced Flashing drops the glows and `prefers-reduced-motion` skips the animations.
 
 ### Dev URL parameters
@@ -91,6 +92,7 @@ src/
     tutorialPlan.js  the How to Play level and its planned beats (aims found on game forks)
   render/          orb art, painterly backgrounds, VFX, power-up glyphs, scene renderer
   ui/mapArt.js     parchment World Map
+  ui/keyArt.js     the five keys as SVG icons, and the key ring
   ui/tutorial.js   How to Play run: stepping, input gating, lesson card, spotlight overlay
   ui/rotateHint.js portrait screen: full-screen steps for this device, or turn sideways
   audio.js         synthesised clicks, cracks, shimmer and the ambient bed

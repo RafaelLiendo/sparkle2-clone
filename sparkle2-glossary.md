@@ -649,14 +649,27 @@ content). Enchantments unlock progressively as levels are completed (§5).
   arrives — no surprise difficulty spikes (§7.6).
 - **First sighting:** a power-up icon (§2.6) carries a name caption until the player has
   collected that type once (persisted). The caption is part of the icon, not HUD.
-- **First-clear rewards:** the win screen reveals the recovered key and the newly
-  unlocked enchantment in turn, each with its own soft cue. With a new enchantment it
+- **Keys on screen:** a key always appears as a **key icon**, never as text. Each of the
+  five keys has its own gem colour, so they tell apart at a glance. Key names appear only
+  in tooltips and screen-reader labels. The **key ring** shows the five slots in story
+  order: a gold key where recovered, a faint outline where not.
+- **Day intro:** a key day shows its key on a medallion, as an outline until recovered and
+  in gold with a tick after. The enchantment the day unlocks has its own card ("Clear the
+  day to unlock" / "Unlocked"). The key and the enchantment are never shown as one reward
+  line. The intro does not list the equipped enchantments.
+- **First-clear rewards:** the win screen reveals the recovered key first: it turns into
+  view, then settles into the key ring. The newly unlocked enchantment rises in after it.
+  Each has its own soft cue. With a new enchantment the win screen
   offers **Choose enchantments**, which opens the menu focused on the new card. Nothing is
   ever auto-equipped. Unlocked enchantments not yet seen carry a **New** tag, and every
   Enchantments button shows a marker, until the menu has been closed once.
+- **World Map seals:** a seal's colour is the day's state only: **green** cleared, **red**
+  ready to play, **grey** locked. A cleared day carries a tick. A key day carries its key
+  icon, pressed into the wax until recovered and gold after. A legend on the map explains
+  all of this. The key ring sits at the top of the map.
 - **Map reveal:** after a first clear the World Map plays one reveal: the cleared day's
-  seal turns, newly reachable days unveil in turn, and a recovered key settles into its
-  slot.
+  seal turns (its key warms to gold), newly reachable days unveil in turn, and a
+  recovered key drops into its slot in the key ring.
 - All of this obeys §7.6: soft fades, no flashes. Reduced Flashing drops the glows, and
   reduced motion skips the animations.
 

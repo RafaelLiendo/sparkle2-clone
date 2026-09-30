@@ -21,6 +21,7 @@ import {
   writeSave,
 } from './save.js';
 import { TouchGestures } from './touchGestures.js';
+import { keyIcon, keyRing } from './ui/keyArt.js';
 import { paintMap } from './ui/mapArt.js';
 import { renderRotateHint } from './ui/rotateHint.js';
 import { TutorialRun } from './ui/tutorial.js';
@@ -38,6 +39,13 @@ const stonesPhrase = (ids) => `${ids.map(colorName).join(' and ')} stones`;
 // touch devices get touch hints, larger buttons and the portrait pause
 const COARSE = matchMedia('(pointer: coarse)');
 const PORTRAIT_TOUCH = matchMedia('(orientation: portrait) and (pointer: coarse)');
+
+// A recovered key starts settling into its key-ring slot this long (s) after the screen opens,
+// on the World Map and on the win screen; it lands KEY_LAND s later, with a soft clack.
+const KEY_SETTLE = { map: 1.3, win: 1.0 };
+const KEY_LAND = 0.55;
+
+const TICK = '<svg class="tick" viewBox="0 0 32 32" aria-hidden="true"><path d="M9 16.5l4.5 4.5L23 11" /></svg>';
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
@@ -503,6 +511,21 @@ export class App {
     return fullscreenSupported() || isStandalone() ? hint : `${hint}<br>Add to Home Screen to play full screen`;
   }
 
+  /**
+   * A wax seal. Its colour is the day's state (`done` / `open` / `locked`); a key day carries
+   * its key, pressed into the wax until recovered and gold after, and a cleared day a tick.
+   */
+  seal(state, key = null) {
+    let inner = '';
+    if (key) {
+      inner = keyIcon(key, { state: 'embossed' });
+      if (state === 'done') inner += keyIcon(key, { cls: 'over' });
+    } else if (state === 'done') {
+      inner = TICK;
+    }
+    return `<span class="seal ${state}${key ? ' key' : ''}" aria-hidden="true">${inner}</span>`;
+  }
+
   /** Hand over the owed map reveal, if any (it plays once). */
   takeCelebration() {
     const c = this.celebration;
@@ -518,11 +541,11 @@ export class App {
     this.scene = 'map';
     this.game = null;
     this.tutorial = null;
-    const keys = keysCollected(this.save);
     const nodes = DAYS.map((d) => {
       const done = isCompleted(this.save, d.id);
       const open = isAvailable(this.save, d);
-      let cls = done ? 'done' : open ? 'open' : 'locked';
+      const state = done ? 'done' : open ? 'open' : 'locked';
+      let cls = state;
       let style = `left:${d.map.x}px;top:${d.map.y}px`;
       const opened = celebrate?.opened.indexOf(d.id) ?? -1;
       if (celebrate?.done === d.id) cls += ' just-done';
@@ -530,28 +553,36 @@ export class App {
         cls += ' just-opened';
         style += `;--delay:${(0.9 + opened * 0.35).toFixed(2)}s`;
       }
+      const keyNote = d.key ? (done ? ', key recovered' : ', holds a key') : '';
       return `<button class="map-node ${cls}${d.key ? ' key' : ''}" style="${style}"
-        data-day="${d.id}" ${open ? '' : 'disabled'} aria-label="${esc(d.name)}${done ? ' (complete)' : open ? '' : ' (locked)'}">
-        <span class="seal"></span><span class="label">${esc(d.name)}</span></button>`;
+        data-day="${d.id}" ${open ? '' : 'disabled'} aria-label="${esc(d.name)}${done ? ' (complete)' : open ? '' : ' (locked)'}${keyNote}">
+        ${this.seal(state, d.key)}<span class="label">${esc(d.name)}</span></button>`;
     }).join('');
-    const keySlots = [0, 1, 2, 3, 4]
-      .map((i) => {
-        const got = keys[i] && keys[i] === celebrate?.key ? ' just-got' : '';
-        return `<span class="key-slot ${keys[i] ? 'have' : ''}${got}" title="${esc(keys[i] || 'Undiscovered key')}"></span>`;
-      })
-      .join('');
+    const legend = `<div class="map-legend" role="note" aria-label="Legend">
+        <h3>Legend</h3>
+        <ul>
+          <li>${this.seal('done')}<span>Cleared</span></li>
+          <li>${this.seal('open')}<span>Ready to play</span></li>
+          <li>${this.seal('locked')}<span>Locked</span></li>
+          <li>${this.seal('open', DAYS.find((d) => d.key).key)}<span>Holds a key</span></li>
+        </ul>
+      </div>`;
     this.setUI(`
       <div class="screen map-screen">
         ${nodes}
+        ${legend}
+        <div class="key-plaque">${keyRing(keysCollected(this.save), { justGot: celebrate?.key, settle: KEY_SETTLE.map })}</div>
         <div class="map-bar">
           <button class="btn small" data-act="back">Title</button>
-          <div class="keys" aria-label="Enchanted keys recovered: ${keys.length} of 5">${keySlots}</div>
           <button class="btn small${this.enchantBtnClass()}" data-act="enchant">Enchantments</button>
           <button class="btn small" data-act="howto">How to Play</button>
           <button class="btn small" data-act="options">Options</button>
         </div>
       </div>`);
-    if (celebrate) this.audio.mapReveal();
+    if (celebrate) {
+      this.audio.mapReveal();
+      if (celebrate.key) this.audio.keySettle(KEY_SETTLE.map + KEY_LAND);
+    }
     this.bindClicks({
       '[data-act=back]': () => this.showTitle(),
       '[data-act=enchant]': () => this.showEnchantments(() => this.showMap()),
@@ -595,11 +626,6 @@ export class App {
     this.ui.querySelectorAll('.modal-wrap').forEach((m) => m.remove());
   }
 
-  loadoutSummary() {
-    if (!this.save.loadout.length) return '<span class="muted">No enchantments equipped</span>';
-    return this.save.loadout.map((id) => `<span class="chip">${esc(ENCHANT_BY_ID[id].name)}</span>`).join(' ');
-  }
-
   /** What a day holds: its stones (new ones marked) and any power-ups it adds to the drops. */
   dayPreview(d) {
     const { newColors, newPowerups } = dayNovelty(d);
@@ -618,22 +644,36 @@ export class App {
     return `<div class="preview"><div class="stones" aria-label="Stones: ${esc(d.colors.map(colorName).join(', '))}"><span class="lbl">Stones</span>${stones}</div>${warn}${pups}</div>`;
   }
 
+  /** A key day's medallion: the key as an outline until recovered, then gold with a tick. */
+  keyMedal(d, done) {
+    const label = done ? `${d.key} recovered` : 'This day holds a key';
+    return `<span class="key-medal${done ? ' have' : ''}" role="img" title="${esc(label)}" aria-label="${esc(label)}">
+      ${keyIcon(d.key, { state: done ? 'have' : 'empty', size: 50 })}${done ? `<span class="medal-tick">${TICK}</span>` : ''}</span>`;
+  }
+
+  /** The enchantment a day's first clear unlocks, apart from its key. */
+  unlockCard(ench, done) {
+    return `<div class="unlock-card${done ? ' earned' : ''}">
+      <span class="ench-sigil" aria-hidden="true"></span>
+      <span class="unlock-body">
+        <span class="reveal-lbl">${done ? `Unlocked${TICK}` : 'Clear the day to unlock'}</span>
+        <b>${esc(ench.name)}</b><span class="unlock-text">${esc(ench.text)}</span>
+      </span></div>`;
+  }
+
   showDayIntro(id) {
     const d = DAY_BY_ID[id];
     const done = isCompleted(this.save, id);
     const unlocked = unlockedEnchantments(this.save);
-    const reward = [];
-    if (d.key) reward.push(`<span class="chip key-chip">${esc(d.key)}</span>`);
-    if (d.unlock) reward.push(`<span class="chip">${esc(ENCHANT_BY_ID[d.unlock].name)}</span>`);
     const el = this.modal(
-      `<h2>${esc(d.name)}</h2>
+      `${d.key ? this.keyMedal(d, done) : ''}
+      <h2>${esc(d.name)}</h2>
       <p class="story">${esc(d.intro)}</p>
       ${this.dayPreview(d)}
-      ${reward.length ? `<p class="reward">${done ? 'Earned' : 'Reward'}: ${reward.join(' ')}</p>` : ''}
-      <div class="loadout"><span class="lbl">Enchantments</span> ${this.loadoutSummary()}</div>
+      ${d.unlock ? this.unlockCard(ENCHANT_BY_ID[d.unlock], done) : ''}
       <div class="row">
         <button class="btn" data-act="cancel">Back</button>
-        ${unlocked.length ? `<button class="btn${this.enchantBtnClass()}" data-act="enchant">Change enchantments</button>` : ''}
+        ${unlocked.length ? `<button class="btn${this.enchantBtnClass()}" data-act="enchant">Enchantments</button>` : ''}
         <button class="btn primary" data-act="go">Begin the day</button>
       </div>`,
       {
@@ -642,6 +682,7 @@ export class App {
         '[data-act=go]': () => this.startDay(id),
       },
     );
+    el.querySelector('.modal').classList.add('intro');
     this.paintSwatches(el);
   }
 
@@ -889,20 +930,19 @@ export class App {
       this.celebration = { done: d.id, opened: newlyOpenedDays(this.save, d.id), key: d.key };
     }
     const ench = first && d.unlock ? ENCHANT_BY_ID[d.unlock] : null;
-    const lines = [];
-    const reveals = [];
-    if (d.key && first) {
-      reveals.push(`<div class="reveal-item key-reveal">
-        <span class="reveal-lbl">Enchanted key recovered</span><span class="key-gem" aria-hidden="true"></span>
-        <span class="reveal-name">${esc(d.key)}</span></div>`);
-    } else if (d.key) {
-      lines.push(`<p class="reward">You recovered the <span class="chip key-chip">${esc(d.key)}</span></p>`);
-    }
-    if (ench) {
-      reveals.push(`<div class="reveal-item ench-reveal">
-        <span class="reveal-lbl">New enchantment</span><span class="ench-sigil" aria-hidden="true"></span>
-        <span class="reveal-name">${esc(ench.name)}</span><span class="reveal-text">${esc(ench.text)}</span></div>`);
-    }
+    const gotKey = first && d.key;
+    // the key turns into view, then settles into the key ring; the enchantment follows
+    const keyHero = gotKey
+      ? `<div class="key-hero" role="img" aria-label="You recovered the ${esc(d.key)}">
+          <span class="key-halo"></span>${keyIcon(d.key, { size: 104 })}</div>
+        ${keyRing(keysCollected(this.save), { justGot: d.key, settle: KEY_SETTLE.win, cls: 'win-ring' })}`
+      : '';
+    const enchAt = gotKey ? KEY_SETTLE.win + KEY_LAND + 0.25 : 0.35;
+    const enchCard = ench
+      ? `<div class="reveal"><div class="reveal-item ench-reveal" style="--delay:${enchAt}s">
+          <span class="reveal-lbl">New enchantment</span><span class="ench-sigil" aria-hidden="true"></span>
+          <span class="reveal-name">${esc(ench.name)}</span><span class="reveal-text">${esc(ench.text)}</span></div></div>`
+      : '';
     const finale = d.id === DAYS[DAYS.length - 1].id;
     const buttons = ench
       ? `<button class="btn" data-act="again">Play again</button>
@@ -912,8 +952,8 @@ export class App {
          <button class="btn primary" data-act="map">Continue</button>`;
     const el = this.modal(
       `<h2>The Circle is sealed</h2><p class="muted">${esc(this.dayLabel())}</p>
-      ${reveals.length ? `<div class="reveal">${reveals.join('')}</div>` : ''}
-      ${lines.join('')}
+      ${keyHero}
+      ${enchCard}
       ${finale ? `<p class="story">${esc(EPILOGUE)}</p>` : ''}
       <div class="row">${buttons}</div>`,
       {
@@ -927,10 +967,12 @@ export class App {
       },
     );
     if (ench) el.querySelector('.modal').classList.add('roomy');
-    // reveals rise in one after another, each with its own cue
-    el.querySelectorAll('.reveal-item').forEach((it, i) => it.style.setProperty('--delay', `${0.35 + i * 0.7}s`));
-    if (d.key && first) this.audio.keyChime(0.35);
-    if (ench) this.audio.reward(0.35 + (d.key ? 0.7 : 0));
+    // each reveal has its own cue
+    if (gotKey) {
+      this.audio.keyChime(0.35);
+      this.audio.keySettle(KEY_SETTLE.win + KEY_LAND);
+    }
+    if (ench) this.audio.reward(enchAt);
   }
 
   showFail() {

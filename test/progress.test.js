@@ -4,6 +4,7 @@ import { POWERUP_IDS, POWERUPS } from '../src/defs.js';
 import { DAY_BY_ID, DAYS, powerupsForTier } from '../src/levels.js';
 import { dayNovelty, newlyOpenedDays } from '../src/progress.js';
 import { defaultSave, loadSave, unseenEnchantments } from '../src/save.js';
+import { KEY_GEMS, KEY_NAMES } from '../src/ui/keyArt.js';
 
 const PURPLE = 4;
 const BLACK = 5;
@@ -60,4 +61,10 @@ test('a fresh save knows nothing; unseen enchantments follow clears', () => {
   assert.deepEqual(save.seenPowerups, []);
   save.completed.push('d1');
   assert.deepEqual(unseenEnchantments(save), ['suddenFire']);
+});
+
+test('the five keys each have their own gem colour', () => {
+  assert.equal(KEY_NAMES.length, 5);
+  for (const name of KEY_NAMES) assert.ok(KEY_GEMS[name], `${name} has a gem`);
+  assert.equal(new Set(KEY_NAMES.map((n) => KEY_GEMS[n])).size, 5);
 });

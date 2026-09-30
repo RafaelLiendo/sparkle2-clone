@@ -312,32 +312,9 @@ button:focus-visible {
   align-items: center;
   color: #3a2614;
 }
-.map-node .seal {
-  display: block;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #d25a48, #8e2418 60%, #5a120a);
-  box-shadow: 0 2px 4px rgba(40, 20, 0, 0.6), inset 0 -2px 3px rgba(0, 0, 0, 0.35);
-  border: 2px solid rgba(70, 20, 10, 0.6);
-}
-.map-node.key .seal {
-  width: 40px;
-  height: 40px;
-  background: radial-gradient(circle at 35% 35%, #f0d27a, #b88a2a 60%, #6a4a10);
-  border-color: rgba(90, 60, 10, 0.7);
-}
-.map-node.done .seal {
-  background: radial-gradient(circle at 35% 35%, #6f8f5a, #3d5a2a 60%, #203212);
-}
-.map-node.key.done .seal {
-  background: radial-gradient(circle at 35% 35%, #fff0b0, #d8aa40 55%, #7a5510);
-  box-shadow: 0 0 14px rgba(255, 210, 120, 0.7), 0 2px 4px rgba(40, 20, 0, 0.6);
-}
 .map-node.locked {
   cursor: default;
-  opacity: 0.45;
-  filter: grayscale(0.8);
+  opacity: 0.5;
 }
 .map-node .label {
   margin-top: 4px;
@@ -347,7 +324,7 @@ button:focus-visible {
   white-space: nowrap;
   text-shadow: 0 0 4px rgba(230, 210, 170, 0.9);
 }
-.map-node.open:not(.done) .seal {
+.map-node.open .seal {
   animation: breathe 3.2s ease-in-out infinite;
 }
 @keyframes breathe {
@@ -358,6 +335,121 @@ button:focus-visible {
 .map-node:focus-visible {
   outline: 2px solid #3a2614;
   outline-offset: 4px;
+}
+.map-node.key.done .seal {
+  box-shadow: 0 0 12px rgba(255, 210, 120, 0.6), 0 2px 4px rgba(40, 20, 0, 0.6);
+}
+
+/* wax seal: its colour is the day's state; a key day carries its key, a cleared day a tick */
+.seal {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 2px solid rgba(70, 20, 10, 0.6);
+  background: radial-gradient(circle at 35% 35%, #d25a48, #8e2418 60%, #5a120a);
+  box-shadow: 0 2px 4px rgba(40, 20, 0, 0.6), inset 0 -2px 3px rgba(0, 0, 0, 0.35);
+}
+.seal > svg {
+  grid-area: 1 / 1;
+  position: relative;
+  z-index: 1;
+}
+.seal.key {
+  width: 42px;
+  height: 42px;
+}
+.seal.done {
+  background: radial-gradient(circle at 35% 35%, #82a86a, #3d5a2a 60%, #203212);
+  border-color: rgba(20, 44, 12, 0.6);
+}
+.seal.locked {
+  background: radial-gradient(circle at 35% 35%, #a29c8e, #625e55 60%, #37342f);
+  border-color: rgba(40, 38, 34, 0.6);
+}
+.seal .key-icon {
+  width: 84%;
+  height: 84%;
+}
+.tick {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.seal .tick {
+  width: 64%;
+  height: 64%;
+  color: #eef4d8;
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.45));
+}
+
+/* the map's legend: a small parchment cartouche under the map's title */
+.map-legend {
+  position: absolute;
+  left: 22px;
+  top: 112px;
+  padding: 10px 18px 12px 14px;
+  color: #3a2614;
+  font-family: Cinzel, Georgia, serif;
+  background: rgba(238, 222, 184, 0.78);
+  border: 1px solid rgba(58, 38, 20, 0.55);
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 3px rgba(238, 222, 184, 0.78), inset 0 0 0 4px rgba(58, 38, 20, 0.3), 0 3px 8px rgba(40, 20, 0, 0.25);
+}
+.map-legend h3 {
+  margin: 0 0 7px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  text-align: center;
+  opacity: 0.8;
+}
+.map-legend ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.map-legend li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.map-legend .seal {
+  width: 24px;
+  height: 24px;
+  margin: 0 3px;
+  border-width: 1.5px;
+}
+.map-legend .seal.key {
+  width: 30px;
+  height: 30px;
+  margin: 0;
+}
+.map-legend .seal.locked {
+  opacity: 0.5;
+}
+
+/* the five keys, on a dark plaque at the top of the map */
+.key-plaque {
+  position: absolute;
+  left: 50%;
+  top: 12px;
+  transform: translateX(-50%);
+  padding: 6px 18px;
+  border-radius: 30px;
+  background: linear-gradient(#2e2619, #1c170f);
+  border: 1px solid #7a5f30;
+  box-shadow: 0 4px 12px rgba(40, 20, 0, 0.45), inset 0 0 0 1px rgba(242, 213, 140, 0.12);
+  --key-hollow: #251e14;
 }
 
 .map-bar {
@@ -373,20 +465,93 @@ button:focus-visible {
   border-radius: 8px;
   padding: 8px 14px;
 }
-.keys {
+
+/* ---------------------------------------------------------------- keys */
+.key-icon {
+  display: block;
+  overflow: visible;
+  --key-edge: #4a3108;
+  --key-body: #e2b24c;
+  --key-shine: #fff3c8;
+  --key-hole: #3a2606;
+}
+.key-icon .k-edge {
+  fill: var(--key-edge);
+  stroke: var(--key-edge);
+  stroke-width: 4.5;
+  stroke-linejoin: round;
+}
+.key-icon .k-body {
+  fill: var(--key-body);
+}
+.key-icon .k-shine {
+  fill: none;
+  stroke: var(--key-shine);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  opacity: 0.85;
+}
+.key-icon .k-hole {
+  fill: var(--key-hole);
+}
+.key-icon .k-gem {
+  fill: var(--gem);
+}
+.key-icon .k-spark {
+  fill: #fff;
+  opacity: 0.85;
+}
+/* not found yet: a faint outline */
+.key-icon.empty {
+  --key-edge: rgba(242, 213, 140, 0.4);
+  --key-body: var(--key-hollow, #1b1812);
+  --key-hole: rgba(242, 213, 140, 0.18);
+}
+/* pressed into a wax seal */
+.key-icon.embossed {
+  --key-edge: rgba(0, 0, 0, 0.3);
+  --key-body: rgba(0, 0, 0, 0.2);
+  --key-shine: rgba(255, 235, 210, 0.45);
+  --key-hole: rgba(0, 0, 0, 0.22);
+}
+.key-icon.empty :is(.k-shine, .k-gem, .k-spark),
+.key-icon.embossed :is(.k-gem, .k-spark) {
+  display: none;
+}
+
+.key-ring {
   display: flex;
-  gap: 8px;
+  gap: 10px;
 }
 .key-slot {
-  width: 20px;
-  height: 20px;
-  transform: rotate(45deg);
-  border: 2px solid #8a6a30;
-  background: rgba(0, 0, 0, 0.35);
+  display: grid;
 }
-.key-slot.have {
-  background: radial-gradient(circle, #fff0b0, #c8962e);
-  box-shadow: 0 0 8px rgba(255, 210, 120, 0.6);
+.key-slot > svg {
+  grid-area: 1 / 1;
+}
+.key-slot .over {
+  filter: drop-shadow(0 0 4px rgba(255, 210, 120, 0.45));
+}
+/* a recovered key drops into its slot */
+.key-slot.just-got .over {
+  animation: key-settle 1s ease-out var(--settle, 0.5s) both;
+}
+@keyframes key-settle {
+  0% {
+    opacity: 0;
+    transform: translateY(-14px) scale(1.4) rotate(-20deg);
+    filter: drop-shadow(0 0 0 rgba(255, 210, 120, 0));
+  }
+  55% {
+    opacity: 1;
+    transform: none;
+    filter: drop-shadow(0 0 10px rgba(255, 210, 120, 0.85));
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+    filter: drop-shadow(0 0 4px rgba(255, 210, 120, 0.45));
+  }
 }
 
 /* ---------------------------------------------------------------- modals */
@@ -398,6 +563,7 @@ button:focus-visible {
   pointer-events: auto;
 }
 .modal {
+  position: relative;
   width: 620px;
   max-width: 94%;
   background: var(--panel);
@@ -427,36 +593,6 @@ button:focus-visible {
   color: var(--ink-dim);
   font-size: 17px;
   margin: 0 0 14px;
-}
-.reward {
-  font-size: 18px;
-}
-.reward em {
-  display: block;
-  color: var(--ink-dim);
-  margin-top: 6px;
-}
-.chip {
-  display: inline-block;
-  font-family: Cinzel, Georgia, serif;
-  font-size: 14px;
-  padding: 3px 10px;
-  border: 1px solid #6a5a3a;
-  border-radius: 12px;
-  background: rgba(60, 50, 30, 0.6);
-  margin: 2px;
-}
-.key-chip {
-  border-color: var(--gold);
-  color: var(--gold-hi);
-}
-.loadout {
-  margin: 14px 0 4px;
-  font-size: 16px;
-}
-.loadout .lbl {
-  color: var(--ink-dim);
-  margin-right: 6px;
 }
 .row {
   display: flex;
@@ -758,16 +894,176 @@ button:focus-visible {
   color: var(--gold-hi);
 }
 
-/* win: a key or enchantment rises in, one after another */
+/* day intro: a key day shows its key on a medallion, apart from the enchantment it unlocks */
+.key-medal {
+  position: absolute;
+  top: 18px;
+  right: 22px;
+  display: grid;
+  place-items: center;
+  width: 66px;
+  height: 66px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #3a3322, #1d1911 70%);
+  border: 1px solid #7a5f30;
+  box-shadow: inset 0 0 0 3px rgba(0, 0, 0, 0.25), 0 3px 10px rgba(0, 0, 0, 0.5);
+  --key-hollow: #2a2419;
+  animation: medal-glint 3.6s ease-in-out infinite;
+}
+.key-medal .key-icon.empty {
+  --key-edge: rgba(242, 213, 140, 0.62);
+}
+.key-medal.have {
+  border-color: var(--gold);
+  animation: none;
+  box-shadow: inset 0 0 0 3px rgba(0, 0, 0, 0.25), 0 0 14px rgba(255, 210, 120, 0.3);
+}
+.key-medal.have .key-icon {
+  filter: drop-shadow(0 0 5px rgba(255, 210, 120, 0.45));
+}
+@keyframes medal-glint {
+  50% {
+    border-color: var(--gold);
+    box-shadow: inset 0 0 0 3px rgba(0, 0, 0, 0.25), 0 0 12px rgba(255, 210, 120, 0.25);
+  }
+}
+.medal-tick {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #82a86a, #3d5a2a 70%);
+  border: 1px solid rgba(20, 44, 12, 0.8);
+  color: #eef4d8;
+}
+.medal-tick .tick {
+  width: 18px;
+  height: 18px;
+}
+.key-medal + h2 {
+  padding: 0 70px;
+}
+.modal.intro {
+  width: 680px;
+}
+.modal.intro .row .btn {
+  min-width: 160px;
+}
+
+.unlock-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  max-width: 480px;
+  margin: 16px auto 0;
+  padding: 12px 18px;
+  text-align: left;
+  border: 1px solid #6a5a3a;
+  border-radius: 10px;
+  background: linear-gradient(#2e2a1d, #1f1c15);
+}
+.unlock-card .ench-sigil {
+  flex: none;
+}
+.unlock-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.unlock-body .reveal-lbl {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.unlock-body .tick {
+  width: 16px;
+  height: 16px;
+  color: #9cc47e;
+}
+.unlock-body b {
+  font-family: Cinzel, Georgia, serif;
+  font-weight: 600;
+  font-size: 18px;
+  color: var(--gold-hi);
+}
+.unlock-text {
+  font-size: 16px;
+  line-height: 1.3;
+  color: var(--ink-dim);
+}
+.unlock-card.earned {
+  border-color: rgba(212, 171, 85, 0.6);
+}
+
+/* win: the key turns into view and settles into the key ring; the enchantment follows */
+.key-hero {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 150px;
+  height: 128px;
+  margin: 2px auto 0;
+}
+.key-hero > * {
+  grid-area: 1 / 1;
+}
+.key-hero .key-icon {
+  position: relative;
+  animation: key-turn 1s cubic-bezier(0.2, 0.8, 0.3, 1) 0.35s both;
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.5));
+}
+.key-halo {
+  width: 124px;
+  height: 124px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 214, 130, 0.32), rgba(255, 214, 130, 0.1) 45%, transparent 70%);
+  animation: halo-in 1.6s ease-out 0.35s both;
+}
+@keyframes key-turn {
+  from {
+    opacity: 0;
+    transform: translateY(16px) rotate(-28deg) scale(0.85);
+  }
+  60% {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes halo-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.win-ring {
+  justify-content: center;
+  margin: 4px 0 6px;
+  --key-hollow: #17150f;
+}
+.win-ring .key-icon {
+  width: 38px;
+  height: 38px;
+}
+
 .reveal {
   display: flex;
   justify-content: center;
-  gap: 18px;
-  margin: 10px 0 4px;
+  margin: 12px 0 4px;
 }
 .reveal-item {
   flex: 1;
-  max-width: 280px;
+  max-width: 420px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -795,15 +1091,6 @@ button:focus-visible {
   font-size: 16px;
   line-height: 1.3;
   color: var(--ink-dim);
-}
-.key-gem {
-  width: 30px;
-  height: 30px;
-  margin: 8px 0 4px;
-  transform: rotate(45deg);
-  border: 2px solid #8a6a30;
-  background: radial-gradient(circle, #fff0b0, #c8962e);
-  box-shadow: 0 0 14px rgba(255, 210, 120, 0.55);
 }
 .ench-sigil {
   width: 40px;
@@ -840,10 +1127,7 @@ button:focus-visible {
   }
 }
 
-/* map: the cleared seal turns, new days unveil, a recovered key settles in */
-.map-node .seal {
-  position: relative;
-}
+/* map: the cleared seal turns (a key warms to gold), new days unveil, a recovered key settles in */
 .map-node.just-done .seal::before,
 .map-node.just-done .seal::after {
   content: '';
@@ -860,8 +1144,16 @@ button:focus-visible {
   opacity: 0;
   animation: seal-ring 1.4s ease-out 0.6s forwards;
 }
+.map-node.just-done .seal :is(.over, .tick) {
+  animation: fade-in 0.9s ease-in-out 0.6s both;
+}
 @keyframes fade-out {
   to {
+    opacity: 0;
+  }
+}
+@keyframes fade-in {
+  from {
     opacity: 0;
   }
 }
@@ -883,7 +1175,7 @@ button:focus-visible {
 }
 @keyframes unveil {
   from {
-    opacity: 0.45;
+    opacity: 0.5;
     filter: grayscale(0.8);
   }
   to {
@@ -891,21 +1183,10 @@ button:focus-visible {
     filter: none;
   }
 }
-.key-slot.just-got {
-  animation: key-settle 1.4s ease-out 0.5s both;
-}
-@keyframes key-settle {
-  from {
-    background: rgba(0, 0, 0, 0.35);
-    box-shadow: none;
-  }
-  45% {
-    box-shadow: 0 0 16px rgba(255, 210, 120, 0.8);
-  }
-}
 
 /* Reduced Flashing: keep the reveals, drop the glows */
 .reduced-flashing .ench.new,
+.reduced-flashing .key-medal,
 .reduced-flashing .map-node.just-done .seal::after {
   animation: none;
 }
@@ -916,14 +1197,36 @@ button:focus-visible {
 .reduced-flashing .stone.new .swatch {
   box-shadow: 0 0 0 2px var(--gold);
 }
-.reduced-flashing .key-gem,
-.reduced-flashing .ench-sigil {
+.reduced-flashing .ench-sigil,
+.reduced-flashing .key-medal,
+.reduced-flashing .map-node.key.done .seal {
   box-shadow: none;
+}
+.reduced-flashing .key-halo {
+  display: none;
+}
+.reduced-flashing :is(.key-slot .over, .key-medal .key-icon) {
+  filter: none;
+}
+.reduced-flashing .key-slot.just-got .over {
+  animation-name: key-settle-calm;
+}
+@keyframes key-settle-calm {
+  from {
+    opacity: 0;
+    transform: translateY(-14px) scale(1.4) rotate(-20deg);
+  }
+  55%,
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .map-node.open:not(.done) .seal,
+  .map-node.open .seal,
   .ench.new,
+  .key-medal,
   .map-node.just-done .seal::after {
     animation: none;
   }
@@ -932,7 +1235,10 @@ button:focus-visible {
   }
   .reveal-item,
   .map-node.just-opened,
-  .key-slot.just-got {
+  .map-node.just-done .seal :is(.over, .tick),
+  .key-hero .key-icon,
+  .key-halo,
+  .key-slot.just-got .over {
     animation: none;
     opacity: 1;
   }
