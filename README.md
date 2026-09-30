@@ -10,10 +10,11 @@ Plain ES modules + Canvas 2D + WebAudio. No dependencies, no build step.
 
 ```sh
 npm start        # serves on http://localhost:5173
-npm test         # 50 simulation and progress tests (node:test)
+npm run build    # bundles everything into a single dist/index.html (esbuild)
+npm test         # 51 simulation and progress tests (node:test)
 ```
 
-Any static file server works too; ES modules just need `http://`, not `file://`.
+Any static file server works too; ES modules just need `http://`, not `file://`. The built `dist/index.html` is self-contained and opens directly from disk (fonts still load from Google Fonts).
 
 ## Controls
 

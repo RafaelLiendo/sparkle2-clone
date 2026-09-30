@@ -6,9 +6,13 @@
   "type": "module",
   "scripts": {
     "start": "node server.mjs",
+    "build": "node scripts/build.mjs",
     "test": "node --test \"test/**/*.test.js\""
   },
   "engines": {
     "node": ">=20"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
   }
 }
