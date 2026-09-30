@@ -183,7 +183,7 @@ A power-up icon drops onto the field on **every 3rd Combo Counter increment**
   **front of the Slinger queue** (§2.2), displacing excess orbs into the overflow
   reserve; instant types take effect on collection — the armed/instant split is
   canonical in §4.
-- **Effect selection:** randomized from the player's unlocked power-up pool using
+- **Effect selection:** randomized from the level's power-up pool (§6.1) using
   per-type weights, with an anti-repeat rule: a roll matching the previous drop's type is
   rerolled with **80%** probability. 15-type weights *(tunable `powerupWeights`)*:
   Purple Fire **30**, Slow **25**, Wild **25**, Backwards **20**, Firebolts x3 **14**,
@@ -353,8 +353,9 @@ The player-controlled launcher, positioned on the level (often central), pivotin
   Firebolt orbs**. Power-up orbs are ordinary queue members: they can be swapped,
   Eternity-cycled, and held until the player chooses to fire them, so up to queue
   capacity of power-up orbs may be held at once. The special state is shown **on the
-  orb itself**: flame orbs are engulfed (violet/golden), Splash orbits paint
-  droplets, Wild goes prismatic — no HUD text.
+  orb itself**: each special kind has its own carved glyph (§7.1), flame orbs are
+  engulfed (violet/golden), Splash orbits paint droplets, and Wild goes prismatic — no
+  HUD text.
 - **Appearance and queue presentation direction: §7.5.**
 - Enchantment loadout (up to 4) attaches to the Slinger; every-Nth-loaded-orb cadence
   counters for special-orb enchantments (§3) live here.
@@ -372,7 +373,8 @@ An ordered, moving sequence of orbs following a path.
   3+ (a cascade).
 - A level can have **multiple simultaneous lines** on one or more paths.
 - **Speed model** *(per-level tunable `speedParams`)*:
-  - Base pusher speed **4 orbs/s**.
+  - Base pusher speed **4 orbs/s**; a level may override any `speedParams` field, and
+    the base is then multiplied by the difficulty factor (§6.2).
   - **Rollout feed-in:** the line enters at **20 orbs/s** (rollout multiplier ×5);
     once the head reaches **25%** of the **visible span** (§2.5) the multiplier drops
     to ×1 and the line eases down to base speed (4 orbs/s). Rollout depends only on
@@ -628,7 +630,7 @@ meta-progression is level-completion-gated only.
 
 ---
 
-## 6. Game mode
+## 6. Game modes
 
 ### 6.1 Story Mode
 
@@ -638,15 +640,88 @@ across the lands. Keys are **narrative collectibles only** — not currency. Pro
 on a **World Map** with occasional branch choices that **reconverge** (no missable
 content). Enchantments unlock progressively as levels are completed (§5).
 
+- **Day content:** each day defines its colour set (`allowedColors[]`, §2.1) and a power-up
+  tier. Pools are cumulative: a day's power-up pool is every tier up to its own.
+- **Novelty:** what a day *adds* is its colours and power-ups absent from every day it
+  requires on the map (the first day adds nothing). The day intro shows the day's stones,
+  marks new ones, and lists new power-ups with name and one-line effect text. A day that
+  adds colours also says so in the level banner ("New: Purple stones") before the line
+  arrives — no surprise difficulty spikes (§7.6).
+- **First sighting:** a power-up icon (§2.6) carries a name caption until the player has
+  collected that type once (persisted). The caption is part of the icon, not HUD.
+- **First-clear rewards:** the win screen reveals the recovered key and the newly
+  unlocked enchantment in turn, each with its own soft cue. With a new enchantment it
+  offers **Choose enchantments**, which opens the menu focused on the new card. Nothing is
+  ever auto-equipped. Unlocked enchantments not yet seen carry a **New** tag, and every
+  Enchantments button shows a marker, until the menu has been closed once.
+- **Map reveal:** after a first clear the World Map plays one reveal: the cleared day's
+  seal turns, newly reachable days unveil in turn, and a recovered key settles into its
+  slot.
+- All of this obeys §7.6: soft fades, no flashes. Reduced Flashing drops the glows, and
+  reduced motion skips the animations.
+
+### 6.2 Difficulty
+
+A player setting: **Normal / Hard / Nightmare** (default Normal), chosen on the title
+screen or in Options and persisted. It is read when a day **starts**: a running day keeps
+its difficulty, and the day's label shows it ("The Mossy Gate · Hard"). It multiplies
+only the level's base pusher speed *(tunable `difficultySpeed` = Normal ×1, Hard ×2,
+Nightmare ×3)*. Speed multipliers (rollout, danger crawl, Slow, enchantments) still apply
+on top. Everything with its own canonical speed (projectiles, recoil, attraction,
+Backwards, drain) is unchanged. Story progress, keys and unlocks are shared across
+difficulties.
+
+### 6.3 How to Play (tutorial)
+
+A short **scripted, deterministic** level that teaches by play. It is not a Story day:
+it grants no key, unlock or completion, and it always runs at difficulty ×1.
+
+- **Entry / exit:** it starts automatically on the first **Begin the Story** (until it
+  has been seen), and can be replayed from **How to Play** on the title screen and the map
+  bar. Finishing or skipping marks it seen and opens the World Map. Its Pause menu offers
+  **Skip the tutorial** and **Back to the Title** (which does not mark it seen). A
+  progress reset clears the flag.
+- **Scripted content:** a single path with a fixed line, tail → head: blue, red, blue,
+  red, blue, red, red, yellow, **green**, yellow, red, blue. It is prefilled with the head
+  at the spawn boundary, and its pusher has no stock. The first Slinger orbs are scripted:
+  green, green, red, yellow, blue, red, blue. After that, generation is normal. Scripted
+  orbs are ordinary normal orbs. The power-up pool is Purple Fire only, and no
+  enchantments are equipped. `runeTarget` = 15, exactly the orbs the script destroys, so
+  the final blast seals the circle. Speed overrides give a fast rollout that brings the
+  whole line on screen, then a near-standstill crawl.
+- **Beat loop:** the Slinger aims itself; pointer aim is ignored. At each lesson the
+  simulation **pauses**, spotlights the target, and waits for the **one** input the lesson
+  asks for. A fire counts only if the click/tap lands within the target's radius plus a
+  margin (larger on touch), and the shot uses the planned angle, not the pointer. Any
+  other input is ignored, and the spotlight nudges.
+- **Lessons:** (1) fire beside the green → a pair, no match; (2) fire again → three greens
+  pop, and the gap closes because yellow faces yellow; (3) swap: red is loaded, yellow is
+  next; (4) fire between the yellows → the yellows match, then the reds cascade on their
+  own: combo 3 drops Purple Fire, and the recoil opens a gap; (5) shoot the icon through
+  the gap; (6) fire the Purple Flame into the middle of the line → the line clears and the
+  circle seals; (7) the day is won, and any input continues. A lesson card shows the
+  instruction for the current device (mouse or touch), then a short reaction as the
+  action plays out.
+- **Planning:** the beats are computed headlessly. The planner plays the script on the
+  simulation and finds each shot's angle by trying candidate angles on **forks** (deep
+  copies) of the game, taking the centre of the widest run of angles that succeed. The
+  live run replays the same actions at the same simulation steps, so it lands
+  identically. This requires a fully deterministic, seeded simulation that can be forked.
+  The stretch from the combo shot until the collecting shot clears the gap plays in slow
+  motion (×0.45).
+- **Tutorial-only exception to §7.6:** calm "Match" / "Combo ×N" labels mark each pop so
+  that the combo is visible while it is being taught.
+
 ---
 
 ## 7. Presentation
 
 Look-and-feel **direction, not a spec**. The goal is to capture the mood of the
 original *Sparkle 2* — not to copy it. Exact colors, timings, layer recipes, animation
-curves, and asset details are free implementation choices. Only two things in this
-section are binding: the **flash-safety constraints in §7.6**, and gameplay rules
-restated here for context (the gameplay section always governs).
+curves, and asset details are free implementation choices. Only three things in this
+section are binding: the **flash-safety constraints in §7.6**, the **special-orb glyph
+rule in §7.1**, and gameplay rules restated here for context (the gameplay section always
+governs).
 
 The target feeling is **ancient fantasy ritual — calm, heavy, satisfying**. Orbs are
 carved stone spheres with gold inlay: opaque, polished, closer to billiard balls than
@@ -662,9 +737,15 @@ reading as a frenetic arcade light show.
 - Orbs **roll** as they travel (surface detail rotating with distance) and cast contact
   shadows — a line of orbs should read as pressed-together solids.
 - **Surface detail (settled):**
-  - Each orb carries a **carved glyph** (one design per color, so color never relies on
-    hue alone) at each of two opposite poles, cut straight into the stone — no gold ring,
-    recessed disc, or shadow around it.
+  - Each orb carries a **carved glyph** at each of two opposite poles, cut straight into
+    the stone — no gold ring, recessed disc, or shadow around it. There is one design per
+    color, so color never relies on hue alone. **Special orbs carry glyphs too** (binding):
+    the Wild and each special kind (Firebolt, Purple Flame, Frost Ray, Decay, Spark
+    charge) have their own design. Each is distinct from every color glyph and from the
+    others, so a special reads as itself even with its effect animation dimmed. A Colour
+    Splash orb shows its payload color's glyph. Special orbs follow the same surface rules
+    as ordinary orbs (inlay band, resting pose), and their effect (flames, frost, motes,
+    sparks, droplets) plays around the carved orb.
   - **Exactly one gold inlay band** per orb: the great circle between the two glyphs.
   - Rolling is driven **only by travel**: the detail turns about the axis across the
     path at the rolling-without-slipping rate (2 rad per orb traveled). Glyphs move along

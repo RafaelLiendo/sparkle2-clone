@@ -240,6 +240,57 @@ const WILD_GLYPH = (g) => {
   }
 };
 
+// One glyph per special orb kind, distinct from the colour glyphs and from each other.
+const SPECIAL_GLYPHS = {
+  firebolt: (g) => {
+    // lightning bolt
+    g.moveTo(0.2, -0.8);
+    g.lineTo(-0.3, 0.05);
+    g.lineTo(0.25, 0.05);
+    g.lineTo(-0.2, 0.8);
+  },
+  purple: (g) => {
+    // flame inside its blast ring
+    g.moveTo(0, -0.45);
+    g.bezierCurveTo(0.32, -0.1, 0.28, 0.3, 0, 0.42);
+    g.bezierCurveTo(-0.28, 0.3, -0.32, -0.1, 0, -0.45);
+    g.moveTo(0.78, 0);
+    g.arc(0, 0, 0.78, 0, Math.PI * 2);
+  },
+  frost: (g) => {
+    // ice crystal: an elongated hexagon split down its length
+    g.moveTo(0, -0.8);
+    g.lineTo(0.42, -0.4);
+    g.lineTo(0.42, 0.4);
+    g.lineTo(0, 0.8);
+    g.lineTo(-0.42, 0.4);
+    g.lineTo(-0.42, -0.4);
+    g.closePath();
+    g.moveTo(0, -0.8);
+    g.lineTo(0, 0.8);
+  },
+  decay: (g) => {
+    // inward spiral
+    g.moveTo(0.75, 0);
+    for (let i = 1; i <= 60; i++) {
+      const a = (i / 60) * Math.PI * 4.5;
+      const r = 0.75 * (1 - i / 72);
+      g.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+    }
+  },
+  spark: (g) => {
+    // fan of three rays with a spark at each tip
+    for (const a of [-0.5, 0, 0.5]) {
+      const x = Math.sin(a) * 1.25;
+      const y = 0.65 - Math.cos(a) * 1.25;
+      g.moveTo(0, 0.65);
+      g.lineTo(x * 0.8, 0.65 + (y - 0.65) * 0.8);
+      g.moveTo(x + 0.12, y);
+      g.arc(x, y, 0.12, 0, Math.PI * 2);
+    }
+  },
+};
+
 // --- Surface detail as curves on the sphere -----------------------------------
 // Glyphs, the medallion ring and the inlay band are curves ON the sphere: rotated by
 // the roll, projected orthographically and clipped to the front hemisphere, so they
@@ -480,6 +531,8 @@ export class OrbArt {
     for (const [k, hex] of Object.entries(SPECIAL_BASE)) {
       this.special[k] = sphereSprite(hex, mix(hex, '#FFFFFF', 0.35), mix(hex, '#000000', 0.55), 900 + k.length * 31);
     }
+    this.specialGlyphGeo = {};
+    for (const [k, glyph] of Object.entries(SPECIAL_GLYPHS)) this.specialGlyphGeo[k] = glyphOnSphere(glyph);
     this.glowBy = {
       gold: glowSprite('#FFC860'),
       violet: glowSprite('#C77DFF'),
@@ -616,6 +669,7 @@ export class OrbArt {
       return;
     }
     ctx.drawImage(this.special[k], x - sh, y - sh, sd, sd);
+    this.drawSurface(ctx, x, y, d, this.specialGlyphGeo[k], AMMO_ROLL, angle, 1);
     ctx.drawImage(this.highlight, x - sh, y - sh, sd, sd);
     if (k === 'firebolt') this.drawFlames(ctx, x, y, d, time, '#FFB347', '#FFE0A0', reduced);
     else if (k === 'purple') this.drawFlames(ctx, x, y, d, time, '#B266FF', '#E8C8FF', reduced);
