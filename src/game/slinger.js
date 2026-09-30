@@ -17,7 +17,6 @@ export class Slinger {
     this.reloadT = CONFIG.reloadTime;
     this.buffer = 0;
     this.genCount = 0;
-    this.cadenceFlip = 0;
     this.kick = 0; // cosmetic recoil of the cradle (§7.5), 0..1
     for (let i = 0; i < this.capacity; i++) this.queue.push(this.generate());
   }
@@ -27,12 +26,10 @@ export class Slinger {
     if (this.game.ammoScript.length) return { kind: 'normal', color: this.game.ammoScript.shift() };
     const e = this.game.enchant;
     const n = ++this.genCount;
+    // the cadence enchantments share a group (§5), so at most one of these is equipped
     if (e.flamePurple && n % CONFIG.flamePurpleEvery === 0) return { kind: 'purple', color: null };
-    const sf = e.suddenFire && n % CONFIG.suddenFireEvery === 0;
-    const cw = e.callOfTheWild && n % CONFIG.callOfTheWildEvery === 0;
-    if (sf && cw) return { kind: this.cadenceFlip++ % 2 === 0 ? 'firebolt' : 'wild', color: null };
-    if (sf) return { kind: 'firebolt', color: null };
-    if (cw) return { kind: 'wild', color: null };
+    if (e.suddenFire && n % CONFIG.suddenFireEvery === 0) return { kind: 'firebolt', color: null };
+    if (e.callOfTheWild && n % CONFIG.callOfTheWildEvery === 0) return { kind: 'wild', color: null };
     return { kind: 'normal', color: this.game.randomPresentColor() };
   }
 

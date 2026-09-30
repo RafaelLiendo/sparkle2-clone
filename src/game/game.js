@@ -56,7 +56,6 @@ export class Game {
     this.runeTarget = Math.max(1, Math.round(level.runeTarget * (e.tranquility ? CONFIG.tranquilityTargetMult : 1)));
     this.runeProgress = 0;
     if (e.headStart) this.runeProgress = Math.ceil((this.runeTarget * CONFIG.headStartPips) / RUNE_PIPS);
-    this.prelitPips = this.pipsLit();
     this.runeFireNext = CONFIG.runeFireEvery;
 
     this.paths = level.paths.map((p, i) => new Path(p.beziers, i));
@@ -761,7 +760,7 @@ export class Game {
     const pips = this.pipsLit();
     if (pips !== before) this.emit({ type: 'rune', pips });
     if (this.enchant.runeFire) {
-      while (pips - this.prelitPips >= this.runeFireNext) {
+      while (pips >= this.runeFireNext) {
         this.runeFireNext += CONFIG.runeFireEvery;
         this.fireSpinner();
       }

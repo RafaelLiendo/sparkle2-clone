@@ -612,48 +612,157 @@ button:focus-visible {
   min-width: 280px;
 }
 
-.ench-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-  text-align: left;
+/* enchantments: the Slinger with one socket per group, then a group's picker */
+.modal.enchant {
+  width: 820px;
 }
-.ench {
+.sockets {
+  display: grid;
+  grid-template-columns: 1fr 150px 1fr;
+  grid-template-rows: auto auto;
+  align-items: center;
+  gap: 18px 14px;
+  margin: 10px 0 18px;
+}
+.slinger-emblem {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  width: 150px;
+  height: 150px;
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.6));
+}
+.socket {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-height: 92px;
-  padding: 10px 12px;
-  border-radius: 8px;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 14px;
+  border-radius: 50px;
   border: 1px solid #4d4636;
   background: linear-gradient(#2e2b24, #1f1d18);
   color: var(--ink);
   cursor: pointer;
   text-align: left;
 }
-.ench .name {
-  font-family: Cinzel, Georgia, serif;
-  font-size: 15px;
-  color: var(--gold-hi);
+.socket.s0,
+.socket.s2 {
+  grid-column: 1;
+  flex-direction: row-reverse;
+  text-align: right;
 }
-.ench .text {
-  font-size: 15px;
-  line-height: 1.25;
+.socket.s1,
+.socket.s3 {
+  grid-column: 3;
+}
+.socket.s0,
+.socket.s1 {
+  grid-row: 1;
+}
+.socket.s2,
+.socket.s3 {
+  grid-row: 2;
+}
+.socket-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+}
+.socket-group {
+  font-family: Cinzel, Georgia, serif;
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
   color: var(--ink-dim);
 }
-.ench.on {
-  border-color: var(--gold);
-  box-shadow: inset 0 0 0 1px var(--gold), 0 0 12px rgba(212, 171, 85, 0.25);
-  background: linear-gradient(#3e3726, #2a2418);
+.socket-name {
+  font-family: Cinzel, Georgia, serif;
+  font-size: 19px;
+  color: var(--gold-hi);
 }
-.ench.locked {
-  opacity: 0.45;
+.socket.locked {
   cursor: default;
 }
+.socket.locked .socket-name {
+  font-family: inherit;
+  font-size: 16px;
+  color: var(--ink-dim);
+}
+.socket.new {
+  border-color: var(--gold);
+  animation: fresh-glow 2.8s ease-in-out infinite;
+}
 @media (hover: hover) {
-  .ench:hover:not(.locked) {
+  .socket:hover:not(.locked) {
     border-color: var(--gold);
   }
+}
+.medals {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  margin: 14px 0 6px;
+}
+.medal {
+  position: relative;
+  display: grid;
+  place-items: center;
+  padding: 6px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+}
+.medal .new-tag {
+  position: absolute;
+  left: 50%;
+  bottom: -10px;
+  transform: translateX(-50%);
+  margin: 0;
+  background: var(--panel);
+}
+.medal-on {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #2c3a22;
+  border: 1px solid #9cc47e;
+}
+.medal-on .tick {
+  width: 18px;
+  height: 18px;
+  color: #9cc47e;
+}
+.medal.sel .ench-icon {
+  box-shadow: 0 0 0 3px var(--gold-hi), 0 0 22px 6px rgba(255, 210, 120, 0.55);
+}
+.ench-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 92px;
+  margin: 14px auto 8px;
+  max-width: 560px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(212, 171, 85, 0.3);
+}
+.ench-detail b {
+  font-family: Cinzel, Georgia, serif;
+  font-weight: 600;
+  font-size: 24px;
+  color: var(--gold-hi);
+}
+.ench-detail span {
+  font-size: 19px;
+  line-height: 1.3;
+  color: var(--ink);
+}
+.ench-detail.locked span {
+  color: var(--ink-dim);
 }
 
 .opt {
@@ -868,22 +977,19 @@ button:focus-visible {
   color: var(--ink);
 }
 
-/* enchantments menu: freshly unlocked cards */
-.new-tag {
+/* enchantments menu: freshly unlocked sockets and medallions */
+.socket-group .new-tag {
   margin-left: 8px;
   padding: 1px 6px;
   border: 1px solid var(--gold);
   border-radius: 8px;
-  vertical-align: 2px;
+  vertical-align: 1px;
+  letter-spacing: 0.08em;
 }
-.ench .name {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.ench.new {
-  border-color: var(--gold);
-  animation: fresh-glow 2.8s ease-in-out infinite;
+.medal .new-tag {
+  padding: 1px 6px;
+  border: 1px solid var(--gold);
+  border-radius: 8px;
 }
 @keyframes fresh-glow {
   50% {
@@ -966,7 +1072,7 @@ button:focus-visible {
   border-radius: 10px;
   background: linear-gradient(#2e2a1d, #1f1c15);
 }
-.unlock-card .ench-sigil {
+.unlock-card .ench-icon {
   flex: none;
 }
 .unlock-body {
@@ -1092,15 +1198,44 @@ button:focus-visible {
   line-height: 1.3;
   color: var(--ink-dim);
 }
-.ench-sigil {
-  width: 40px;
-  height: 40px;
+/* enchantment medallion: a gold bezel around tinted glass, the motif inside, a glint on top */
+.ench-icon {
+  position: relative;
+  display: inline-block;
+  flex: none;
+  width: var(--s);
+  height: var(--s);
   border-radius: 50%;
-  border: 2px solid var(--gold);
+  border: calc(var(--s) * 0.075) solid transparent;
   background:
-    radial-gradient(circle, transparent 38%, rgba(212, 171, 85, 0.9) 40%, rgba(212, 171, 85, 0.9) 46%, transparent 48%),
-    radial-gradient(circle at 35% 35%, #5a4f36, #1f1c15);
-  box-shadow: 0 0 14px rgba(255, 210, 120, 0.45);
+    radial-gradient(circle at 40% 34%, var(--g1), var(--g2) 78%) padding-box,
+    linear-gradient(150deg, #fff1b0, #d4a43e 30%, #7a5516 58%, #e9c56a 82%, #8a6420) border-box;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.55), 0 0 10px rgba(255, 210, 120, 0.25);
+  overflow: hidden;
+}
+.ench-icon svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.ench-icon::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(ellipse 46% 30% at 36% 22%, rgba(255, 255, 255, 0.34), transparent 70%);
+  box-shadow: inset 0 -6px 12px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+}
+.ench-icon.locked {
+  background:
+    radial-gradient(circle at 40% 34%, var(--g1), var(--g2) 78%) padding-box,
+    linear-gradient(150deg, #8c826c, #4d4636 50%, #6a604c) border-box;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.55);
+}
+.reveal-item .ench-icon {
+  margin: 4px 0 2px;
 }
 @keyframes rise-in {
   from {
@@ -1185,7 +1320,7 @@ button:focus-visible {
 }
 
 /* Reduced Flashing: keep the reveals, drop the glows */
-.reduced-flashing .ench.new,
+.reduced-flashing .socket.new,
 .reduced-flashing .key-medal,
 .reduced-flashing .map-node.just-done .seal::after {
   animation: none;
@@ -1197,7 +1332,7 @@ button:focus-visible {
 .reduced-flashing .stone.new .swatch {
   box-shadow: 0 0 0 2px var(--gold);
 }
-.reduced-flashing .ench-sigil,
+.reduced-flashing .ench-icon,
 .reduced-flashing .key-medal,
 .reduced-flashing .map-node.key.done .seal {
   box-shadow: none;
@@ -1225,7 +1360,7 @@ button:focus-visible {
 
 @media (prefers-reduced-motion: reduce) {
   .map-node.open .seal,
-  .ench.new,
+  .socket.new,
   .key-medal,
   .map-node.just-done .seal::after {
     animation: none;
@@ -1382,4 +1517,19 @@ button:focus-visible {
 }
 .map-bar .btn {
   white-space: nowrap;
+}
+
+/* Reduced Flashing: the chosen medallion keeps a plain ring, without the glow */
+.reduced-flashing .medal.sel .ench-icon {
+  box-shadow: 0 0 0 3px var(--gold-hi);
+}
+
+/* touch: the socket labels stay readable once the stage is scaled down to a phone */
+@media (pointer: coarse) {
+  .socket-group {
+    font-size: 15px;
+  }
+  .socket.locked .socket-name {
+    font-size: 18px;
+  }
 }

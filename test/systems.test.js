@@ -118,16 +118,19 @@ test('Eternity Swap cycles the loaded orb to the back', () => {
   assert.deepEqual(s.queue, [b, c, a]);
 });
 
-test('cadence: Flame Purple wins the shared slot; Sudden Fire / Call of the Wild alternate', () => {
-  const g = makeGame({}, { enchantments: ['suddenFire', 'callOfTheWild', 'flamePurple'] });
-  const s = g.slinger;
-  s.genCount = 0;
-  const kinds = [];
-  for (let i = 0; i < 40; i++) kinds.push(s.generate().kind);
-  assert.equal(kinds[9], 'firebolt');
-  assert.equal(kinds[19], 'purple');
-  assert.equal(kinds[29], 'wild');
-  assert.equal(kinds[39], 'purple');
+test('cadence: each Ammo enchantment replaces every Nth generated orb', () => {
+  for (const [id, every, kind] of [
+    ['suddenFire', CONFIG.suddenFireEvery, 'firebolt'],
+    ['callOfTheWild', CONFIG.callOfTheWildEvery, 'wild'],
+    ['flamePurple', CONFIG.flamePurpleEvery, 'purple'],
+  ]) {
+    const s = makeGame({}, { enchantments: [id] }).slinger;
+    s.genCount = 0;
+    const kinds = [];
+    for (let i = 0; i < 2 * every; i++) kinds.push(s.generate().kind);
+    const special = kinds.flatMap((k, i) => (k === kind ? [i + 1] : []));
+    assert.deepEqual(special, [every, 2 * every], id);
+  }
 });
 
 test('Colour Wipe removes one colour everywhere incl. the Abyss; no-op when absent', () => {
@@ -202,11 +205,12 @@ test('soft-lock failsafe seals when stock is exhausted with the field clear', ()
   assert.equal(g.state, 'won');
 });
 
-test('Head Start pre-lights pips that Rune Fire does not count', () => {
-  const g = makeGame({ runeTarget: 120 }, { enchantments: ['headStart', 'runeFire'] });
+test('Head Start pre-lights pips; Rune Fire fires a spinner every 6 pips', () => {
+  const pre = makeGame({ runeTarget: 120 }, { enchantments: ['headStart'] });
+  assert.equal(pre.pipsLit(), CONFIG.headStartPips);
+  const g = makeGame({ runeTarget: 120 }, { enchantments: ['runeFire'] });
   place(g, g.tracks[0], [R], 3);
-  assert.equal(g.pipsLit(), CONFIG.headStartPips);
-  g.addRune(10 * 5); // 5 more pips → no spinner yet
+  g.addRune(10 * 5); // 5 pips → no spinner yet
   assert.equal(g.pellets.length, 0);
   g.addRune(10);
   assert.equal(g.pellets.length, CONFIG.spinnerPellets);

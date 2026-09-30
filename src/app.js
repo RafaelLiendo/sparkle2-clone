@@ -2,7 +2,7 @@
 
 import { Audio } from './audio.js';
 import { CONFIG } from './config.js';
-import { colorName, DIFFICULTIES, DIFFICULTY_BY_ID, ENCHANT_BY_ID, ENCHANTMENTS, MAX_LOADOUT, POWERUP_IDS, POWERUPS } from './defs.js';
+import { colorName, DIFFICULTIES, DIFFICULTY_BY_ID, ENCHANT_BY_ID, ENCHANT_GROUPS, ENCHANTMENTS, POWERUP_IDS, POWERUPS } from './defs.js';
 import { fullscreenSupported, isFullscreen, isStandalone, onFullscreenChange, toggleFullscreen } from './fullscreen.js';
 import { Game } from './game/game.js';
 import { buildLevel, DAY_BY_ID, DAYS, EPILOGUE, powerupsForTier, PROLOGUE } from './levels.js';
@@ -11,6 +11,10 @@ import { makeCanvasEl, paintBackground } from './render/background.js';
 import { drawPowerupIcon } from './render/icons.js';
 import { Renderer } from './render/renderer.js';
 import {
+  clearsToUnlock,
+  enchantmentForClear,
+  equip,
+  equippedInGroup,
   isAvailable,
   isCompleted,
   keysCollected,
@@ -21,6 +25,7 @@ import {
   writeSave,
 } from './save.js';
 import { TouchGestures } from './touchGestures.js';
+import { enchantIcon } from './ui/enchantArt.js';
 import { keyIcon, keyRing } from './ui/keyArt.js';
 import { paintMap } from './ui/mapArt.js';
 import { renderRotateHint } from './ui/rotateHint.js';
@@ -46,6 +51,19 @@ const KEY_SETTLE = { map: 1.3, win: 1.0 };
 const KEY_LAND = 0.55;
 
 const TICK = '<svg class="tick" viewBox="0 0 32 32" aria-hidden="true"><path d="M9 16.5l4.5 4.5L23 11" /></svg>';
+
+/** "1 more day", "3 more days". */
+const moreDays = (n) => `${n} more ${n === 1 ? 'day' : 'days'}`;
+
+// The Slinger at the heart of the Enchantments menu, its four sockets around it.
+const SLINGER_EMBLEM = `<svg class="slinger-emblem" viewBox="0 0 120 120" aria-hidden="true">
+  <circle cx="60" cy="60" r="54" fill="#1b1a17" stroke="#4d4636" stroke-width="3"/>
+  <circle cx="60" cy="60" r="44" fill="none" stroke="#2e2b24" stroke-width="8"/>
+  <path d="M36 44v14a24 24 0 0 0 48 0V44" fill="none" stroke="#b8bec6" stroke-width="7" stroke-linecap="round"/>
+  <path d="M36 44v14a24 24 0 0 0 48 0V44" fill="none" stroke="#eef1f4" stroke-width="2" stroke-linecap="round" opacity=".6"/>
+  <circle cx="60" cy="46" r="15" fill="#d4ab55"/><circle cx="55" cy="41" r="5" fill="#fff4cc" opacity=".8"/>
+  <circle cx="60" cy="86" r="8" fill="#6f5a2e"/><circle cx="57.5" cy="83.5" r="2.6" fill="#d9c08a" opacity=".7"/>
+</svg>`;
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
@@ -654,7 +672,7 @@ export class App {
   /** The enchantment a day's first clear unlocks, apart from its key. */
   unlockCard(ench, done) {
     return `<div class="unlock-card${done ? ' earned' : ''}">
-      <span class="ench-sigil" aria-hidden="true"></span>
+      ${enchantIcon(ench.id, { size: 52 })}
       <span class="unlock-body">
         <span class="reveal-lbl">${done ? `Unlocked${TICK}` : 'Clear the day to unlock'}</span>
         <b>${esc(ench.name)}</b><span class="unlock-text">${esc(ench.text)}</span>
@@ -665,12 +683,13 @@ export class App {
     const d = DAY_BY_ID[id];
     const done = isCompleted(this.save, id);
     const unlocked = unlockedEnchantments(this.save);
+    const ench = enchantmentForClear(this.save, id);
     const el = this.modal(
       `${d.key ? this.keyMedal(d, done) : ''}
       <h2>${esc(d.name)}</h2>
       <p class="story">${esc(d.intro)}</p>
       ${this.dayPreview(d)}
-      ${d.unlock ? this.unlockCard(ENCHANT_BY_ID[d.unlock], done) : ''}
+      ${ench ? this.unlockCard(ench, done) : ''}
       <div class="row">
         <button class="btn" data-act="cancel">Back</button>
         ${unlocked.length ? `<button class="btn${this.enchantBtnClass()}" data-act="enchant">Enchantments</button>` : ''}
@@ -687,62 +706,99 @@ export class App {
   }
 
   /**
-   * Loadout picker. Enchantments not looked at before carry a "New" tag until the menu
-   * closes; `highlight` focuses one card (the one just unlocked). Nothing is auto-equipped.
+   * The Enchantments menu, in two steps: the Slinger with one socket per group, then a
+   * group's picker. Enchantments not looked at before carry a "New" tag until the menu
+   * closes; `highlight` opens straight on that enchantment's picker (the one just unlocked).
+   * Nothing is auto-equipped.
    */
   showEnchantments(onDone, { highlight } = {}) {
     const unlocked = new Set(unlockedEnchantments(this.save));
     const fresh = new Set(unseenEnchantments(this.save));
-    const render = () => {
-      const lo = this.save.loadout;
-      const cards = ENCHANTMENTS.map((e) => {
-        const has = unlocked.has(e.id);
-        const on = lo.includes(e.id);
-        const isNew = fresh.has(e.id);
-        const src = DAYS.find((d) => d.unlock === e.id);
-        return `<button class="ench ${has ? '' : 'locked'} ${on ? 'on' : ''} ${isNew ? 'new' : ''}" data-ench="${e.id}" ${has ? '' : 'disabled'} aria-pressed="${on}">
-          <span class="name">${esc(e.name)}${isNew ? '<span class="new-tag">New</span>' : ''}</span>
-          <span class="text">${has ? esc(e.text) : `Complete “${esc(src ? src.name : '?')}” to unlock`}</span></button>`;
-      }).join('');
-      const waiting = [...fresh].some((id) => !lo.includes(id));
-      let hint = `Equip up to ${MAX_LOADOUT}. Equipped: ${lo.length} / ${MAX_LOADOUT}`;
-      if (waiting) {
-        hint = lo.length >= MAX_LOADOUT
-          ? 'Your set is full — unequip one to make room, or keep your current set.'
-          : `New enchantment ready. Tap it to equip, or keep your current set. Equipped: ${lo.length} / ${MAX_LOADOUT}`;
-      }
-      return `<h2>Enchantments</h2>
-        <p class="muted${waiting ? ' ench-hint' : ''}">${hint}</p>
-        <div class="ench-grid">${cards}</div>
-        <div class="row"><button class="btn primary" data-act="done">Done</button></div>`;
-    };
-    const bind = (el) => {
-      el.querySelectorAll('[data-ench]').forEach((b) =>
+    const NEW = '<span class="new-tag">New</span>';
+    const el = this.modal('', {});
+    const box = el.querySelector('.modal');
+    box.classList.add('enchant');
+    const members = (g) => ENCHANTMENTS.filter((e) => e.group === g);
+    const on = (sel, fn) =>
+      box.querySelectorAll(sel).forEach((b) =>
         b.addEventListener('click', () => {
           this.audio.unlock();
           this.audio.ui();
-          const id = b.dataset.ench;
-          const lo = this.save.loadout;
-          if (lo.includes(id)) this.save.loadout = lo.filter((x) => x !== id);
-          else if (lo.length < MAX_LOADOUT) lo.push(id);
-          this.persist();
-          el.querySelector('.modal').innerHTML = render();
-          bind(el);
-          el.querySelector(`[data-ench="${id}"]`)?.focus();
+          fn(b);
         }),
       );
-      el.querySelector('[data-act=done]').addEventListener('click', () => {
-        this.audio.ui();
+
+    const overview = (focusGroup = null) => {
+      const sockets = ENCHANT_GROUPS.map((grp, g) => {
+        const list = members(g);
+        const open = list.some((e) => unlocked.has(e.id));
+        const cur = equippedInGroup(this.save, g);
+        const isNew = list.some((e) => fresh.has(e.id));
+        const name = !open
+          ? `Opens after ${moreDays(clearsToUnlock(this.save, list[0].id))}`
+          : cur
+            ? ENCHANT_BY_ID[cur].name
+            : 'Empty';
+        const icon = enchantIcon(open ? cur || 'none' : 'none', { size: 76, state: open ? 'on' : 'locked' });
+        return `<button class="socket s${g}${open ? '' : ' locked'}${isNew ? ' new' : ''}" data-group="${g}" ${open ? '' : 'disabled'}
+          aria-label="${esc(`${grp.name} socket: ${name}`)}">${icon}<span class="socket-body">
+          <span class="socket-group">${esc(grp.name)}${isNew ? NEW : ''}</span><span class="socket-name">${esc(name)}</span></span></button>`;
+      }).join('');
+      const waiting = ENCHANT_GROUPS.findIndex((grp, g) => members(g).some((e) => fresh.has(e.id)) && !equippedInGroup(this.save, g));
+      const hint =
+        waiting < 0
+          ? 'One enchantment in each socket. Choose a socket to change it.'
+          : `New enchantment ready for the ${ENCHANT_GROUPS[waiting].name} socket.`;
+      box.innerHTML = `<h2>Enchant the Slinger</h2>
+        <p class="muted${waiting < 0 ? '' : ' ench-hint'}">${hint}</p>
+        <div class="sockets">${sockets}${SLINGER_EMBLEM}</div>
+        <div class="row"><button class="btn primary" data-act="done">Done</button></div>`;
+      on('[data-group]', (b) => picker(Number(b.dataset.group)));
+      on('[data-act=done]', () => {
         this.save.seenEnchantments = [...unlocked];
         this.persist();
         this.closeModal();
         onDone();
       });
+      (box.querySelector(`[data-group="${focusGroup}"]`) || box.querySelector('[data-act=done]')).focus();
     };
-    const el = this.modal(render(), {});
-    el.querySelector('.modal').classList.add('wide');
-    bind(el);
-    if (highlight) el.querySelector(`[data-ench="${highlight}"]`)?.focus();
+
+    const picker = (g, sel = equippedInGroup(this.save, g) || 'none') => {
+      const cur = equippedInGroup(this.save, g) || 'none';
+      const isOpen = (id) => id === 'none' || unlocked.has(id);
+      const medals = ['none', ...members(g).map((e) => e.id)].map((id) => {
+        const name = id === 'none' ? 'None' : ENCHANT_BY_ID[id].name;
+        return `<button class="medal${id === sel ? ' sel' : ''}" data-pick="${id}" aria-pressed="${id === sel}"
+          aria-label="${esc(`${name}${isOpen(id) ? '' : ' (locked)'}${id === cur ? ' (equipped)' : ''}`)}">
+          ${enchantIcon(id, { size: 86, state: isOpen(id) ? 'on' : 'locked' })}${fresh.has(id) ? NEW : ''}${
+            id === cur && id !== 'none' ? `<span class="medal-on" title="Equipped">${TICK}</span>` : ''
+          }</button>`;
+      }).join('');
+      let name = 'None';
+      let text = 'Leave this socket empty.';
+      if (sel !== 'none') {
+        name = ENCHANT_BY_ID[sel].name;
+        text = isOpen(sel) ? ENCHANT_BY_ID[sel].text : `Clear ${moreDays(clearsToUnlock(this.save, sel))} to unlock.`;
+      }
+      const label = sel === cur && sel !== 'none' ? 'Equipped' : 'Equip';
+      box.innerHTML = `<h2>Select Enchantment</h2>
+        <p class="muted">${esc(ENCHANT_GROUPS[g].name)} socket</p>
+        <div class="medals">${medals}</div>
+        <div class="ench-detail${isOpen(sel) ? '' : ' locked'}"><b>${esc(name)}</b><span>${esc(text)}</span></div>
+        <div class="row"><button class="btn" data-act="back">Back</button>
+          <button class="btn primary" data-act="equip" ${sel === cur || !isOpen(sel) ? 'disabled' : ''}>${label}</button></div>`;
+      on('[data-pick]', (b) => picker(g, b.dataset.pick));
+      on('[data-act=back]', () => overview(g));
+      on('[data-act=equip]', () => {
+        equip(this.save, g, sel === 'none' ? null : sel);
+        this.persist();
+        overview(g);
+      });
+      box.querySelector(`[data-pick="${sel}"]`)?.focus();
+    };
+
+    if (ENCHANT_BY_ID[highlight]) picker(ENCHANT_BY_ID[highlight].group, highlight);
+    else overview();
   }
 
   showOptions(onDone) {
@@ -929,7 +985,7 @@ export class App {
       this.persist();
       this.celebration = { done: d.id, opened: newlyOpenedDays(this.save, d.id), key: d.key };
     }
-    const ench = first && d.unlock ? ENCHANT_BY_ID[d.unlock] : null;
+    const ench = first ? enchantmentForClear(this.save, d.id) : null;
     const gotKey = first && d.key;
     // the key turns into view, then settles into the key ring; the enchantment follows
     const keyHero = gotKey
@@ -940,7 +996,7 @@ export class App {
     const enchAt = gotKey ? KEY_SETTLE.win + KEY_LAND + 0.25 : 0.35;
     const enchCard = ench
       ? `<div class="reveal"><div class="reveal-item ench-reveal" style="--delay:${enchAt}s">
-          <span class="reveal-lbl">New enchantment</span><span class="ench-sigil" aria-hidden="true"></span>
+          <span class="reveal-lbl">New enchantment · ${esc(ENCHANT_GROUPS[ench.group].name)}</span>${enchantIcon(ench.id, { size: 72 })}
           <span class="reveal-name">${esc(ench.name)}</span><span class="reveal-text">${esc(ench.text)}</span></div></div>`
       : '';
     const finale = d.id === DAYS[DAYS.length - 1].id;

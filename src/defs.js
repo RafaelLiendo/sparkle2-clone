@@ -76,28 +76,31 @@ export const AMMO = {
   spark: { insert: false, projectile: false },
 };
 
-/** Enchantments (§5), in canonical table order. */
+/** Enchantment groups (§5): the Slinger has one socket per group. */
+export const ENCHANT_GROUPS = [{ name: 'Handling' }, { name: 'Ammo' }, { name: 'Runes' }, { name: 'Stones' }];
+
+/** Enchantments (§5), in unlock order: each group completes before the next begins. */
 export const ENCHANTMENTS = [
-  { id: 'suddenFire', name: 'Sudden Fire', text: 'Every 10th orb loaded into the Slinger is a Firebolt.' },
-  { id: 'flamePurple', name: 'Flame Purple', text: 'Every 20th loaded orb is a Purple Flame shot.' },
-  { id: 'callOfTheWild', name: 'Call of the Wild', text: 'Every 10th loaded orb is a Wild Orb.' },
-  { id: 'hornOfPlenty', name: 'Horn of Plenty', text: 'The Slinger holds 4 orbs instead of 3.' },
-  { id: 'eternitySwap', name: 'Eternity Swap', text: 'Swap sends the loaded orb to the back of the queue.' },
-  { id: 'speedUnleashed', name: 'Speed Unleashed', text: 'Fired orbs travel faster.' },
-  { id: 'powerMagnetism', name: 'Power Magnetism', text: 'Dropped power-ups drift toward the Slinger.' },
-  { id: 'headStart', name: 'Head Start', text: 'The Rune Circle starts each day with runes pre-lit.' },
-  { id: 'runeFire', name: 'Rune Fire', text: 'A Fire Spinner erupts after every 6 runes lit.' },
-  { id: 'retreatOrders', name: 'Retreat Orders', text: 'Completing the Rune Circle pushes the orb lines back.' },
-  { id: 'marchOfTheFurious', name: 'March of the Furious', text: 'Completing the Rune Circle releases the Butterflies.' },
-  { id: 'marchBlue', name: 'March Blue', text: 'Every blue-orb match releases the Butterflies.' },
-  { id: 'orbsUnhatched', name: 'Orbs Unhatched', text: 'Every red-orb match summons Fireflies.' },
-  { id: 'redNoMore', name: 'Red No More', text: 'Red orbs no longer appear, but the lines move faster.' },
-  { id: 'tar', name: 'Tar', text: 'Orb lines move slower.' },
-  { id: 'tranquility', name: 'Tranquility', text: 'A calmer pace, but the Rune Circle asks for more.' },
+  { id: 'speedUnleashed', group: 0, name: 'Speed Unleashed', text: 'Fired orbs travel faster.' },
+  { id: 'tranquility', group: 0, name: 'Tranquility', text: 'A calmer pace, but the Rune Circle asks for more.' },
+  { id: 'eternitySwap', group: 0, name: 'Eternity Swap', text: 'Swap sends the loaded orb to the back of the queue.' },
+  { id: 'powerMagnetism', group: 0, name: 'Power Magnetism', text: 'Dropped power-ups drift toward the Slinger.' },
+  { id: 'hornOfPlenty', group: 1, name: 'Horn of Plenty', text: 'The Slinger holds 4 orbs instead of 3.' },
+  { id: 'suddenFire', group: 1, name: 'Sudden Fire', text: 'Every 10th orb loaded into the Slinger is a Firebolt.' },
+  { id: 'callOfTheWild', group: 1, name: 'Call of the Wild', text: 'Every 10th loaded orb is a Wild Orb.' },
+  { id: 'flamePurple', group: 1, name: 'Flame Purple', text: 'Every 20th loaded orb is a Purple Flame shot.' },
+  { id: 'headStart', group: 2, name: 'Head Start', text: 'The Rune Circle starts each day with runes pre-lit.' },
+  { id: 'retreatOrders', group: 2, name: 'Retreat Orders', text: 'Completing the Rune Circle pushes the orb lines back.' },
+  { id: 'marchOfTheFurious', group: 2, name: 'March of the Furious', text: 'Completing the Rune Circle releases the Butterflies.' },
+  { id: 'runeFire', group: 2, name: 'Rune Fire', text: 'A Fire Spinner erupts after every 6 runes lit.' },
+  { id: 'tar', group: 3, name: 'Tar', text: 'Orb lines move slower.' },
+  { id: 'marchBlue', group: 3, name: 'March Blue', text: 'Every blue-orb match releases the Butterflies.' },
+  { id: 'redNoMore', group: 3, name: 'Red No More', text: 'Red orbs no longer appear, but the lines move faster.' },
+  { id: 'orbsUnhatched', group: 3, name: 'Orbs Unhatched', text: 'Every red-orb match summons Fireflies.' },
 ];
 
 export const ENCHANT_BY_ID = Object.fromEntries(ENCHANTMENTS.map((e) => [e.id, e]));
-export const MAX_LOADOUT = 4;
+export const MAX_LOADOUT = ENCHANT_GROUPS.length;
 
 /** Difficulty levels; each scales line speed by `CONFIG.difficultySpeed[id]`. */
 export const DIFFICULTIES = [

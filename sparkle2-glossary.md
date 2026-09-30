@@ -213,9 +213,9 @@ remaining orbs to win.
   effect is lighting one pip.
 - **Visual:** a 12-pip ring lit proportionally to progress (`orbsPopped / runeTarget`).
 - An **objective meter, not a spendable currency**.
-- Enchantment interactions: Head Start (pre-lit runes), Rune Fire (Fire Spinner every 6
-  runes lit), Retreat Orders (push-back on completion), March of the Furious
-  (Butterflies on completion).
+- Enchantment interactions (the Runes group, §5): Head Start (pre-lit runes), Rune Fire
+  (Fire Spinner every 6 runes lit), Retreat Orders (push-back on completion), March of the
+  Furious (Butterflies on completion).
 
 ### 1.6 Lose condition — the Abyss grace period
 
@@ -357,8 +357,8 @@ The player-controlled launcher, positioned on the level (often central), pivotin
   engulfed (violet/golden), Splash orbits paint droplets, and Wild goes prismatic — no
   HUD text.
 - **Appearance and queue presentation direction: §7.5.**
-- Enchantment loadout (up to 4) attaches to the Slinger; every-Nth-loaded-orb cadence
-  counters for special-orb enchantments (§3) live here.
+- Enchantment loadout (one per group, §5) attaches to the Slinger; the every-Nth-loaded-orb
+  cadence counter for special-orb enchantments (§3) lives here.
 
 ### 2.3 Orb Line
 
@@ -594,39 +594,52 @@ don't register.
 
 ## 5. Enchantments
 
-Permanent passive perks equipped on the Slinger between levels. **16 total; free
-selection of any 4 active at once.** Unlocked automatically by completing levels. Once
-unlocked they can be swapped any time. There is **no purchase currency** —
-meta-progression is level-completion-gated only.
+Permanent passive perks equipped on the Slinger between levels. **16 total, in four
+groups of four. The Slinger has one socket per group: one enchantment from each group
+can be active at once**, so choosing is a trade-off inside each group. Once unlocked they
+can be swapped any time. There is **no purchase currency** — meta-progression is
+level-completion-gated only.
 
-| # | Enchantment | Effect |
-|---|---|---|
-| 1 | **Sudden Fire** | Every 10th orb loaded into the Slinger is a **Firebolt**. |
-| 2 | **Flame Purple** | Every 20th loaded orb is a **Purple Flame** shot. |
-| 3 | **Call of the Wild** | Every 10th loaded orb is a **Wild Orb**. |
-| 4 | **Horn of Plenty** | Slinger holds **4** orbs instead of 3. |
-| 5 | **Eternity Swap** | Swap sends the loaded orb to the **back** of the queue (cycle) instead of swapping the first two. |
-| 6 | **Speed Unleashed** | Fired orbs travel faster. |
-| 7 | **Power Magnetism** | Dropped power-up icons drift **toward** the Slinger (`runeTowardBias` 0.2 → 0.8). |
-| 8 | **Head Start** | Rune Circle starts each level with some runes pre-lit. |
-| 9 | **Rune Fire** | **Fire Spinner** auto-triggers after every 6 runes lit — pips of the 12-pip ring (§1.5); Head Start's pre-lit pips don't count, pips lit by Rune Reward do. |
-| 10 | **Retreat Orders** | On rune-circle completion, the orb line is pushed backward for a while. |
-| 11 | **March of the Furious** | On rune-circle completion, **Flight of the Butterflies** auto-triggers. |
-| 12 | **March Blue** | Every **blue**-orb match triggers **Flight of the Butterflies**. |
-| 13 | **Orbs Unhatched** | Every **red**-orb match spawns a **Fireflies** effect. |
-| 14 | **Red No More** | **Red orbs no longer spawn**, but the orb line moves faster (trade-off). |
-| 15 | **Tar** | Orb line moves slower (permanent; stacks multiplicatively per §2.3). |
-| 16 | **Tranquility** | Game is easier but levels take longer (slower pace / lower spawn intensity). |
+**Unlock order:** the enchantments unlock one at a time, in table order. The Nth first
+clear of any Story day unlocks the Nth enchantment, whichever branch it was on (§6.1), so
+each group is complete before the next one begins. A player tries each enchantment of a
+group before having to weigh groups against each other.
+
+| # | Group | Enchantment | Effect |
+|---|---|---|---|
+| 1 | Handling | **Speed Unleashed** | Fired orbs travel faster. |
+| 2 | Handling | **Tranquility** | Game is easier but levels take longer (slower pace / lower spawn intensity). |
+| 3 | Handling | **Eternity Swap** | Swap sends the loaded orb to the **back** of the queue (cycle) instead of swapping the first two. |
+| 4 | Handling | **Power Magnetism** | Dropped power-up icons drift **toward** the Slinger (`runeTowardBias` 0.2 → 0.8). |
+| 5 | Ammo | **Horn of Plenty** | Slinger holds **4** orbs instead of 3. |
+| 6 | Ammo | **Sudden Fire** | Every 10th orb loaded into the Slinger is a **Firebolt**. |
+| 7 | Ammo | **Call of the Wild** | Every 10th loaded orb is a **Wild Orb**. |
+| 8 | Ammo | **Flame Purple** | Every 20th loaded orb is a **Purple Flame** shot. |
+| 9 | Runes | **Head Start** | Rune Circle starts each level with some runes pre-lit. |
+| 10 | Runes | **Retreat Orders** | On rune-circle completion, the orb line is pushed backward for a while. |
+| 11 | Runes | **March of the Furious** | On rune-circle completion, **Flight of the Butterflies** auto-triggers. |
+| 12 | Runes | **Rune Fire** | **Fire Spinner** auto-triggers after every 6 runes lit — pips of the 12-pip ring (§1.5); pips lit by Rune Reward count. |
+| 13 | Stones | **Tar** | Orb line moves slower (permanent; stacks multiplicatively per §2.3). |
+| 14 | Stones | **March Blue** | Every **blue**-orb match triggers **Flight of the Butterflies**. |
+| 15 | Stones | **Red No More** | **Red orbs no longer spawn**, but the orb line moves faster (trade-off). |
+| 16 | Stones | **Orbs Unhatched** | Every **red**-orb match spawns a **Fireflies** effect. |
 
 - Modifier stacking follows the three-tier policy in §2.3 (multiplicative slow-stack /
   Backwards override / additive recoil).
-- **Cadence precedence** when multiple enchantment cadences collide on one loaded orb:
-  Flame Purple wins the slot; with both Sudden Fire and Call of the Wild equipped,
-  their shared cadence slot **alternates** between them.
+- The three cadence enchantments (Sudden Fire, Call of the Wild, Flame Purple) share the
+  Ammo group, so at most one cadence is ever active.
 - A "red/blue-orb match" is any shot or cascade pop whose run contains a ruby/sapphire
   orb (Wilds count as neither).
 - Cadence counters tick at orb *generation* time, so overflow-reserve reuse slows
   cadence arrival in wall-clock terms (accepted).
+- **Medallions:** every enchantment has its own icon: a round gold-rimmed medallion with a
+  tinted glass face and a motif, used wherever the enchantment appears. An empty socket
+  is a smoky black orb, and a locked enchantment is a dim socket with a lock.
+- **Enchantments menu:** two steps. First the Slinger with its four sockets, each showing
+  its group, the equipped medallion and name ("Empty" when none). A group not yet reached
+  is locked and says how many more days open it. Choosing a socket opens that group's
+  picker: None and the group's four medallions (locked ones say how many more days they
+  need). The chosen medallion's name and effect show below, and **Equip** fills the socket.
 
 ---
 
@@ -654,15 +667,18 @@ content). Enchantments unlock progressively as levels are completed (§5).
   in tooltips and screen-reader labels. The **key ring** shows the five slots in story
   order: a gold key where recovered, a faint outline where not.
 - **Day intro:** a key day shows its key on a medallion, as an outline until recovered and
-  in gold with a tick after. The enchantment the day unlocks has its own card ("Clear the
-  day to unlock" / "Unlocked"). The key and the enchantment are never shown as one reward
-  line. The intro does not list the equipped enchantments.
+  in gold with a tick after. The enchantment the day's clear brings has its own card with
+  its medallion: for an uncleared day the next one in the unlock order ("Clear the day to
+  unlock"), for a cleared day the one its first clear unlocked ("Unlocked"). With every
+  enchantment unlocked, an uncleared day shows no card. The key and the enchantment are
+  never shown as one reward line. The intro does not list the equipped enchantments.
 - **First-clear rewards:** the win screen reveals the recovered key first: it turns into
   view, then settles into the key ring. The newly unlocked enchantment rises in after it.
   Each has its own soft cue. With a new enchantment the win screen
-  offers **Choose enchantments**, which opens the menu focused on the new card. Nothing is
-  ever auto-equipped. Unlocked enchantments not yet seen carry a **New** tag, and every
-  Enchantments button shows a marker, until the menu has been closed once.
+  offers **Choose enchantments**, which opens the new enchantment's group picker with it
+  chosen. Nothing is ever auto-equipped. Unlocked enchantments not yet seen carry a **New**
+  tag (on their medallion and their group's socket), and every Enchantments button shows
+  a marker, until the menu has been closed once.
 - **World Map seals:** a seal's colour is the day's state only: **green** cleared, **red**
   ready to play, **grey** locked. A cleared day carries a tick. A key day carries its key
   icon, pressed into the wax until recovered and gold after. A legend on the map explains

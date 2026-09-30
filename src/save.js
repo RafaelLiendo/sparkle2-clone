@@ -1,8 +1,8 @@
 // Progress persistence (localStorage, guarded — the game runs fine without it).
 // Meta-progression is level-completion-gated only (§5): no currency anywhere.
 
-import { DIFFICULTY_BY_ID, MAX_LOADOUT } from './defs.js';
-import { DAYS, powerupsForTier } from './levels.js';
+import { DIFFICULTY_BY_ID, ENCHANT_BY_ID, ENCHANTMENTS, MAX_LOADOUT } from './defs.js';
+import { DAY_BY_ID, DAYS, powerupsForTier } from './levels.js';
 
 const KEY = 'sparkle2clone.save.v1';
 
@@ -59,8 +59,40 @@ export function isAvailable(save, day) {
   return day.requires.length === 0 || day.requires.some((r) => save.completed.includes(r));
 }
 
+/** Story days cleared, in the order of their first clear. */
+function storyClears(save) {
+  return save.completed.filter((id) => DAY_BY_ID[id]);
+}
+
+/** The Nth first clear of any Story day unlocks the Nth enchantment (§5), whichever branch it was. */
 export function unlockedEnchantments(save) {
-  return DAYS.filter((d) => d.unlock && save.completed.includes(d.id)).map((d) => d.unlock);
+  return ENCHANTMENTS.slice(0, storyClears(save).length).map((e) => e.id);
+}
+
+/**
+ * The enchantment a day's first clear brings: for a cleared day the one it unlocked, for any
+ * other day the next one in line (null once all are unlocked).
+ */
+export function enchantmentForClear(save, dayId) {
+  const clears = storyClears(save);
+  const at = clears.indexOf(dayId);
+  return ENCHANTMENTS[at >= 0 ? at : clears.length] || null;
+}
+
+/** Clears still needed before `id` unlocks (0 when it already is). */
+export function clearsToUnlock(save, id) {
+  return Math.max(0, ENCHANTMENTS.indexOf(ENCHANT_BY_ID[id]) + 1 - storyClears(save).length);
+}
+
+/** The enchantment equipped in a group's socket, or null. */
+export function equippedInGroup(save, group) {
+  return save.loadout.find((id) => ENCHANT_BY_ID[id]?.group === group) || null;
+}
+
+/** Fill a group's socket with `id`, or empty it with null. One enchantment per group. */
+export function equip(save, group, id) {
+  save.loadout = save.loadout.filter((x) => ENCHANT_BY_ID[x]?.group !== group);
+  if (id && ENCHANT_BY_ID[id]?.group === group) save.loadout.push(id);
 }
 
 export function keysCollected(save) {
@@ -78,8 +110,14 @@ function knownPowerups(save) {
   return tiers.length ? powerupsForTier(Math.max(...tiers)) : [];
 }
 
-/** Drop loadout entries that are no longer unlocked (e.g. after a reset). */
+/** Keep only unlocked loadout entries, one per group (e.g. after a reset or an old save). */
 export function sanitizeLoadout(save) {
   const unlocked = new Set(unlockedEnchantments(save));
-  save.loadout = save.loadout.filter((id) => unlocked.has(id)).slice(0, MAX_LOADOUT);
+  const groups = new Set();
+  save.loadout = save.loadout.filter((id) => {
+    const g = ENCHANT_BY_ID[id]?.group;
+    if (!unlocked.has(id) || groups.has(g)) return false;
+    groups.add(g);
+    return true;
+  }).slice(0, MAX_LOADOUT);
 }
