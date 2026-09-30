@@ -3,6 +3,7 @@
 import { Audio } from './audio.js';
 import { CONFIG } from './config.js';
 import { colorName, DIFFICULTIES, DIFFICULTY_BY_ID, ENCHANT_BY_ID, ENCHANTMENTS, MAX_LOADOUT, POWERUP_IDS, POWERUPS } from './defs.js';
+import { fullscreenSupported, isFullscreen, isStandalone, onFullscreenChange, toggleFullscreen } from './fullscreen.js';
 import { Game } from './game/game.js';
 import { buildLevel, DAY_BY_ID, DAYS, EPILOGUE, powerupsForTier, PROLOGUE } from './levels.js';
 import { dayNovelty, newlyOpenedDays } from './progress.js';
@@ -19,6 +20,7 @@ import {
   unseenEnchantments,
   writeSave,
 } from './save.js';
+import { TouchGestures } from './touchGestures.js';
 import { paintMap } from './ui/mapArt.js';
 
 const W = CONFIG.canvasW;
@@ -31,11 +33,16 @@ const TITLE_SPIN = { normal: 0.2, hard: 0.6, nightmare: 1.4 };
 /** "Purple stones", "Purple and Black stones". */
 const stonesPhrase = (ids) => `${ids.map(colorName).join(' and ')} stones`;
 
+// touch devices get touch hints, larger buttons and the portrait pause
+const COARSE = matchMedia('(pointer: coarse)');
+const PORTRAIT_TOUCH = matchMedia('(orientation: portrait) and (pointer: coarse)');
+
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
 export class App {
-  constructor({ stage, canvas, ui, debug }) {
+  constructor({ stage, canvas, ui, fsButton, debug }) {
     this.stage = stage;
+    this.fsButton = fsButton;
     this.canvas = canvas;
     this.ui = ui;
     this.debug = debug;
@@ -54,7 +61,17 @@ export class App {
     this.acc = 0;
     this.last = performance.now();
     this.time = 0;
-    this.pointer = { x: W / 2, y: H / 2, touchHold: false, touchStart: null, type: 'mouse' };
+    this.pointer = { x: W / 2, y: H / 2, type: 'mouse' };
+    this.gestures = new TouchGestures({
+      aim: (x, y) => {
+        this.pointer.x = x;
+        this.pointer.y = y;
+        this.game?.aimAt(x, y);
+      },
+      fire: () => this.game?.fire(),
+      swap: () => this.game?.swap(),
+      onSlinger: (x, y, r) => !!this.game && Math.hypot(x - this.game.slinger.x, y - this.game.slinger.y) < r,
+    });
     this.staticLayer = null;
     this.staticKey = null;
     this.fps = 0;
@@ -66,6 +83,13 @@ export class App {
     this.applyReducedFlashing();
     this.fit();
     window.addEventListener('resize', () => this.fit());
+    // iOS reports rotation and toolbar changes more reliably through visualViewport
+    window.visualViewport?.addEventListener('resize', () => this.fit());
+    onFullscreenChange(() => {
+      this.fit();
+      this.syncFullscreenButton();
+    });
+    this.initFullscreenButton();
     canvas.addEventListener('contextrestored', () => {
       this.staticKey = null;
     });
@@ -107,14 +131,18 @@ export class App {
     c.addEventListener('contextmenu', (e) => e.preventDefault());
     c.addEventListener('pointermove', (e) => {
       const p = this.toLogical(e);
+      this.pointer.type = e.pointerType;
+      if (e.pointerType !== 'mouse') {
+        if (this.playable()) this.gestures.move(e.pointerId, p.x, p.y);
+        return;
+      }
       this.pointer.x = p.x;
       this.pointer.y = p.y;
-      this.pointer.type = e.pointerType;
-      if (this.scene === 'level' && this.game && (e.pointerType === 'mouse' || this.pointer.touchHold)) this.game.aimAt(p.x, p.y);
+      if (this.scene === 'level' && this.game) this.game.aimAt(p.x, p.y);
     });
     c.addEventListener('pointerdown', (e) => {
       this.audio.unlock();
-      if (this.scene !== 'level' || !this.game || this.paused) return;
+      if (!this.playable()) return;
       const p = this.toLogical(e);
       this.pointer.type = e.pointerType;
       if (e.pointerType === 'mouse') {
@@ -126,33 +154,20 @@ export class App {
         }
         return;
       }
-      // touch / pen: hold shows the guide, release fires; tapping the Slinger swaps
+      // touch / pen: see TouchGestures (hold aims, release fires, two fingers or the Slinger swap)
       c.setPointerCapture?.(e.pointerId);
-      const s = this.game.slinger;
-      this.pointer.touchStart = { x: p.x, y: p.y, onSlinger: Math.hypot(p.x - s.x, p.y - s.y) < 80 };
-      this.pointer.touchHold = !this.pointer.touchStart.onSlinger;
-      if (this.pointer.touchHold) this.game.aimAt(p.x, p.y);
+      this.gestures.down(e.pointerId, p.x, p.y);
     });
-    const release = (e) => {
-      if (e.pointerType === 'mouse' || !this.pointer.touchStart) return;
-      const start = this.pointer.touchStart;
-      this.pointer.touchStart = null;
-      this.pointer.touchHold = false;
-      if (this.scene !== 'level' || !this.game || this.paused) return;
-      const p = this.toLogical(e);
-      if (start.onSlinger) {
-        const s = this.game.slinger;
-        if (Math.hypot(p.x - s.x, p.y - s.y) < 90) this.game.swap();
+    c.addEventListener('pointerup', (e) => {
+      if (e.pointerType === 'mouse') return;
+      if (!this.playable()) {
+        this.gestures.reset();
         return;
       }
-      this.game.aimAt(p.x, p.y);
-      this.game.fire();
-    };
-    c.addEventListener('pointerup', release);
-    c.addEventListener('pointercancel', () => {
-      this.pointer.touchStart = null;
-      this.pointer.touchHold = false;
+      const p = this.toLogical(e);
+      this.gestures.up(e.pointerId, p.x, p.y);
     });
+    c.addEventListener('pointercancel', (e) => this.gestures.cancel(e.pointerId));
     c.addEventListener(
       'wheel',
       (e) => {
@@ -166,9 +181,49 @@ export class App {
     window.addEventListener('keydown', (e) => this.onKey(e));
     window.addEventListener('blur', () => this.autoPause());
     document.addEventListener('visibilitychange', () => document.hidden && this.autoPause());
+    // turning a phone upright hides the stage behind the rotate hint, so the day waits
+    PORTRAIT_TOUCH.addEventListener('change', (e) => e.matches && this.autoPause());
+  }
+
+  /** A level is running and accepts shots. */
+  playable() {
+    return this.scene === 'level' && !!this.game && !this.paused;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Fullscreen
+
+  initFullscreenButton() {
+    const b = this.fsButton;
+    if (!b) return;
+    b.hidden = !fullscreenSupported();
+    b.addEventListener('click', () => {
+      this.audio.unlock();
+      toggleFullscreen();
+    });
+    this.syncFullscreenButton();
+  }
+
+  syncFullscreenButton() {
+    const b = this.fsButton;
+    if (!b) return;
+    const on = isFullscreen();
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-label', on ? 'Exit full screen' : 'Enter full screen');
+    b.title = on ? 'Exit full screen (F)' : 'Full screen (F)';
+    this.ui.querySelectorAll('[data-act=fullscreen]').forEach((el) => (el.textContent = this.fullscreenLabel()));
+  }
+
+  fullscreenLabel() {
+    return isFullscreen() ? 'Exit full screen' : 'Full screen';
   }
 
   onKey(e) {
+    if (e.code === 'KeyF' && !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey && fullscreenSupported()) {
+      e.preventDefault();
+      toggleFullscreen();
+      return;
+    }
     if (this.scene !== 'level' || !this.game) return;
     if (e.code === 'Escape' || e.code === 'KeyP') {
       e.preventDefault();
@@ -223,7 +278,7 @@ export class App {
         this.renderer.update(dt);
         this.checkEnd(dt);
       }
-      const showGuide = this.pointer.type === 'mouse' || this.pointer.touchHold;
+      const showGuide = this.pointer.type === 'mouse' || this.gestures.holding;
       this.renderer.draw(this.game, this.time, { showGuide: showGuide && !this.paused });
       if (this.debug) this.drawDebug();
     } else {
@@ -321,6 +376,8 @@ export class App {
 
   setUI(html) {
     this.ui.innerHTML = html;
+    this.stage.dataset.scene = this.scene;
+    this.gestures.reset();
   }
 
   bindClicks(map) {
@@ -407,7 +464,7 @@ export class App {
           <button class="btn" data-act="options">Options</button>
         </nav>
         ${this.difficultyPicker()}
-        <p class="hint">Aim with the mouse · click to fire · right-click, wheel or Space to swap</p>
+        <p class="hint">${this.controlsHint()}</p>
       </div>`);
     this.bindClicks({
       '[data-act=story]': () => this.showMap(),
@@ -415,6 +472,13 @@ export class App {
       '[data-act=options]': () => this.showOptions(() => this.showTitle()),
       '[data-diff]': (e, el) => this.pickDifficulty(el),
     });
+  }
+
+  controlsHint() {
+    if (!COARSE.matches) return 'Aim with the mouse · click to fire · right-click, wheel or Space to swap';
+    const hint = 'Hold to aim · lift to fire · tap with two fingers or tap the Slinger to swap';
+    // iPhone Safari cannot go full screen from a page; an installed web app can
+    return fullscreenSupported() || isStandalone() ? hint : `${hint}<br>Add to Home Screen to play full screen`;
   }
 
   /** Hand over the owed map reveal, if any (it plays once). */
@@ -705,6 +769,7 @@ export class App {
   pauseGame() {
     if (!this.game || this.paused) return;
     this.paused = true;
+    this.gestures.reset();
     this.game.pause();
     this.modal(
       `<h2>Paused</h2><p class="muted">${esc(this.dayLabel())}</p>
@@ -712,10 +777,12 @@ export class App {
         <button class="btn primary" data-act="resume">Resume</button>
         <button class="btn" data-act="restart">Restart the day</button>
         <button class="btn" data-act="options">Options</button>
+        ${fullscreenSupported() ? `<button class="btn" data-act="fullscreen">${this.fullscreenLabel()}</button>` : ''}
         <button class="btn" data-act="map">Retreat to the Map</button>
       </div>`,
       {
         '[data-act=resume]': () => this.resume(),
+        '[data-act=fullscreen]': () => toggleFullscreen(),
         '[data-act=restart]': () => this.startDay(this.day.id),
         '[data-act=options]': () => this.showOptions(() => this.pauseAgain()),
         '[data-act=map]': () => this.showMap(),

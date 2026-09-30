@@ -9,6 +9,7 @@ const app = new App({
   stage: document.getElementById('stage'),
   canvas: document.getElementById('game'),
   ui: document.getElementById('ui'),
+  fsButton: document.getElementById('fs-btn'),
   debug: params.has('debug'),
 });
 

@@ -330,7 +330,8 @@ The player-controlled launcher, positioned on the level (often central), pivotin
   color rather than matching one).
 - **Swap** exchanges the loaded and next orb (O(1)). With **Eternity Swap**, swap
   instead sends the loaded orb to the **back** of the queue (full cycle). Power-up orbs
-  swap like any other orb — swap is how the player times a held power-up.
+  swap like any other orb — swap is how the player times a held power-up. On touch,
+  a two-finger tap or a tap on the Slinger swaps; the two-finger tap never fires.
 - **Aim guide:** a dotted trajectory line, stopping at the first orb it would hit,
   tinted to the effective next shot (loaded orb's special > loaded orb's color; Colour
   Splash keeps the orb's color since that's what it paints). On pointer platforms the

@@ -11,10 +11,10 @@ Plain ES modules + Canvas 2D + WebAudio. No dependencies, no build step.
 ```sh
 npm start        # serves on http://localhost:5173
 npm run build    # bundles everything into a single dist/index.html (esbuild)
-npm test         # 51 simulation and progress tests (node:test)
+npm test         # 63 simulation, progress and touch-gesture tests (node:test)
 ```
 
-Any static file server works too; ES modules just need `http://`, not `file://`. The built `dist/index.html` is self-contained and opens directly from disk (fonts still load from Google Fonts).
+Any static file server works too; ES modules just need `http://`, not `file://`. The built `dist/index.html` is self-contained and opens directly from disk (fonts still load from Google Fonts). `dist/` also holds the web app manifest and icons for Add to Home Screen.
 
 ## Controls
 
@@ -22,8 +22,16 @@ Any static file server works too; ES modules just need `http://`, not `file://`.
 |---|---|---|---|
 | Aim | move the mouse (guide always visible) | hold (shows the guide) | — |
 | Fire | left click (clicks during the cooldown are banked) | release / tap | — |
-| Swap | right click or mouse wheel | tap the Slinger | Space or S |
+| Swap | right click or mouse wheel | tap with two fingers, or tap the Slinger | Space or S |
 | Pause | pause button | pause button | Esc or P |
+| Full screen | corner button on the title and map, or Pause menu | same (iPhone: Add to Home Screen) | F |
+
+### Mobile
+
+- Touch uses Pointer Events. When a second finger lands, the Slinger swaps once. Nothing fires until every finger has lifted, so a two-finger tap never shoots. Logic in `src/touchGestures.js`.
+- Full screen uses the Fullscreen API and, on Android, locks to landscape. iPhone Safari cannot make a page full screen. There, **Add to Home Screen** installs the game from `manifest.webmanifest` (`display: fullscreen`, landscape) and it opens without browser bars.
+- In portrait on a touch screen, a "turn your device sideways" screen covers the game and a running day pauses.
+- On touch screens the round buttons are larger, and hover highlights are off so they don't stick after a tap.
 
 **Difficulty** — Normal, Hard or Nightmare — is chosen on the title screen or in Options and applies from the next day started; story progress is shared.
 
@@ -57,6 +65,8 @@ src/
   pathBuilders.js  rounded polylines, spirals — tangent-continuous by construction
   levels.js        story days, layouts, power-up unlock tiers, narrative text
   progress.js      what each day introduces, which days a clear opens
+  touchGestures.js touch controls: hold/release, Slinger tap, two-finger swap (DOM-free)
+  fullscreen.js    Fullscreen API wrapper (webkit fallback, landscape lock)
   game/
     game.js        simulation core: settle/combo, pops, recoil, effects, runes, abyss, win/lose
     track.js       one path: segments, gap attraction, pushers, feed, overtake, insertion
@@ -66,7 +76,8 @@ src/
   ui/mapArt.js     parchment World Map
   audio.js         synthesised clicks, cracks, shimmer and the ambient bed
   app.js           scenes, DOM overlays, input, fixed-step (120 Hz) loop
-test/              node:test suites for the rules in §1–6
+test/              node:test suites for the rules in §1–6 and the touch gestures
+manifest.webmanifest, icon.svg, icon-*.png   web app manifest and icons
 ```
 
 The simulation (`src/game`, `path.js`, `levels.js`) is DOM-free and deterministic for a

@@ -1,6 +1,7 @@
-// Builds a self-contained dist/index.html (JS bundle and CSS inlined): `npm run build`.
+// Builds a self-contained dist/index.html (JS bundle and CSS inlined) plus the web app
+// manifest and icons: `npm run build`.
 import { build } from 'esbuild';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
@@ -37,4 +38,6 @@ swap(/<script type="module" src="src\/main\.js"><\/script>/, `<script type="modu
 
 await mkdir(`${ROOT}dist`, { recursive: true });
 await writeFile(OUT, html);
+// the web app manifest and its icons stay separate files (Add to Home Screen / install)
+for (const f of ['manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png']) await copyFile(`${ROOT}${f}`, `${ROOT}dist/${f}`);
 console.log(`Wrote dist/index.html (${(Buffer.byteLength(html) / 1024).toFixed(1)} KB)`);
