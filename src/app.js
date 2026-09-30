@@ -22,7 +22,8 @@ import {
 } from './save.js';
 import { TouchGestures } from './touchGestures.js';
 import { paintMap } from './ui/mapArt.js';
-import { showTutorial } from './ui/tutorial.js';
+import { renderRotateHint } from './ui/rotateHint.js';
+import { TutorialRun } from './ui/tutorial.js';
 
 const W = CONFIG.canvasW;
 const H = CONFIG.canvasH;
@@ -63,14 +64,15 @@ export class App {
     this.last = performance.now();
     this.time = 0;
     this.pointer = { x: W / 2, y: H / 2, type: 'mouse' };
+    this.tutorial = null; // the How to Play run, while it plays
     this.gestures = new TouchGestures({
       aim: (x, y) => {
         this.pointer.x = x;
         this.pointer.y = y;
-        this.game?.aimAt(x, y);
+        if (!this.tutorial) this.game?.aimAt(x, y);
       },
-      fire: () => this.game?.fire(),
-      swap: () => this.game?.swap(),
+      fire: () => (this.tutorial ? this.tutorial.input('fire', { x: this.pointer.x, y: this.pointer.y }) : this.game?.fire()),
+      swap: () => (this.tutorial ? this.tutorial.input('swap') : this.game?.swap()),
       onSlinger: (x, y, r) => !!this.game && Math.hypot(x - this.game.slinger.x, y - this.game.slinger.y) < r,
     });
     this.staticLayer = null;
@@ -89,7 +91,9 @@ export class App {
     onFullscreenChange(() => {
       this.fit();
       this.syncFullscreenButton();
+      renderRotateHint();
     });
+    renderRotateHint();
     this.initFullscreenButton();
     canvas.addEventListener('contextrestored', () => {
       this.staticKey = null;
@@ -139,13 +143,17 @@ export class App {
       }
       this.pointer.x = p.x;
       this.pointer.y = p.y;
-      if (this.scene === 'level' && this.game) this.game.aimAt(p.x, p.y);
+      if (this.scene === 'level' && this.game && !this.tutorial) this.game.aimAt(p.x, p.y);
     });
     c.addEventListener('pointerdown', (e) => {
       this.audio.unlock();
       if (!this.playable()) return;
       const p = this.toLogical(e);
       this.pointer.type = e.pointerType;
+      if (e.pointerType === 'mouse' && this.tutorial) {
+        this.tutorial.input(e.button === 0 ? 'fire' : e.button === 2 ? 'swap' : 'other', p);
+        return;
+      }
       if (e.pointerType === 'mouse') {
         if (e.button === 0) {
           this.game.aimAt(p.x, p.y);
@@ -174,7 +182,7 @@ export class App {
       (e) => {
         if (this.scene === 'level' && this.game && !this.paused) {
           e.preventDefault();
-          this.game.swap();
+          if (!this.tutorial) this.game.swap();
         }
       },
       { passive: false },
@@ -232,7 +240,7 @@ export class App {
       else if (this.game.state === 'playing') this.pauseGame();
       return;
     }
-    if (this.paused) return;
+    if (this.paused || this.tutorial) return;
     if (e.code === 'Space' || e.code === 'KeyS') {
       e.preventDefault();
       this.game.swap();
@@ -263,24 +271,31 @@ export class App {
     this.fps = this.fps * 0.95 + (dt > 0 ? 1 / dt : 60) * 0.05;
 
     if (this.scene === 'level' && this.game) {
+      const tut = this.tutorial;
       if (!this.paused) {
-        this.acc += dt;
-        let steps = 0;
-        while (this.acc >= STEP && steps < 24) {
-          this.game.update(STEP);
-          this.acc -= STEP;
-          steps++;
+        if (tut) {
+          tut.advance(dt);
+        } else {
+          this.acc += dt;
+          let steps = 0;
+          while (this.acc >= STEP && steps < 24) {
+            this.game.update(STEP);
+            this.acc -= STEP;
+            steps++;
+          }
+          if (steps >= 24) this.acc = 0;
         }
-        if (steps >= 24) this.acc = 0;
         const events = this.game.drainEvents();
         this.renderer.handleEvents(events);
         this.audio.handle(events);
         this.notePowerupsSeen(events);
+        tut?.handleEvents(events);
         this.renderer.update(dt);
-        this.checkEnd(dt);
+        if (!tut) this.checkEnd(dt);
       }
-      const showGuide = this.pointer.type === 'mouse' || this.gestures.holding;
+      const showGuide = tut ? tut.showGuide : this.pointer.type === 'mouse' || this.gestures.holding;
       this.renderer.draw(this.game, this.time, { showGuide: showGuide && !this.paused });
+      tut?.drawOverlay(this.ctx, this.paused ? 0 : dt);
       if (this.debug) this.drawDebug();
     } else {
       this.drawStatic(dt);
@@ -445,6 +460,7 @@ export class App {
 
   /** Day name plus the difficulty the running game was started on. */
   dayLabel() {
+    if (this.tutorial) return 'How to Play';
     const diff = DIFFICULTY_BY_ID[this.game?.difficulty];
     return diff ? `${this.day.name} · ${diff.name}` : this.day.name;
   }
@@ -452,6 +468,7 @@ export class App {
   showTitle() {
     this.scene = 'title';
     this.game = null;
+    this.tutorial = null;
     const started = this.save.completed.length > 0;
     this.setUI(`
       <div class="screen title-screen">
@@ -471,25 +488,11 @@ export class App {
         </div>
       </div>`);
     this.bindClicks({
-      '[data-act=story]': () => this.showMap(),
-      '[data-act=howto]': () => this.showHowToPlay(() => this.showTitle()),
+      '[data-act=story]': () => (this.save.seenTutorial ? this.showMap() : this.startTutorial()),
+      '[data-act=howto]': () => this.startTutorial(),
       '[data-act=enchant]': () => this.showEnchantments(() => this.showTitle()),
       '[data-act=options]': () => this.showOptions(() => this.showTitle()),
       '[data-diff]': (e, el) => this.pickDifficulty(el),
-    });
-  }
-
-  /** How to Play; the first time it is seen, it runs before the day begins. */
-  showHowToPlay(onDone, { first = false } = {}) {
-    showTutorial(this, {
-      first,
-      onDone: () => {
-        if (!this.save.seenTutorial) {
-          this.save.seenTutorial = true;
-          this.persist();
-        }
-        onDone();
-      },
     });
   }
 
@@ -514,6 +517,7 @@ export class App {
   showMap(celebrate = null) {
     this.scene = 'map';
     this.game = null;
+    this.tutorial = null;
     const keys = keysCollected(this.save);
     const nodes = DAYS.map((d) => {
       const done = isCompleted(this.save, d.id);
@@ -552,7 +556,7 @@ export class App {
       '[data-act=back]': () => this.showTitle(),
       '[data-act=enchant]': () => this.showEnchantments(() => this.showMap()),
       '[data-act=options]': () => this.showOptions(() => this.showMap()),
-      '[data-act=howto]': () => this.showHowToPlay(() => this.showMap()),
+      '[data-act=howto]': () => this.startTutorial(),
       '[data-day]': (e, el) => this.showDayIntro(el.dataset.day),
     });
     if (!this.save.seenPrologue) {
@@ -635,7 +639,7 @@ export class App {
       {
         '[data-act=cancel]': () => this.closeModal(),
         '[data-act=enchant]': () => this.showEnchantments(() => this.showDayIntro(id)),
-        '[data-act=go]': () => (this.save.seenTutorial ? this.startDay(id) : this.showHowToPlay(() => this.startDay(id), { first: true })),
+        '[data-act=go]': () => this.startDay(id),
       },
     );
     this.paintSwatches(el);
@@ -757,6 +761,7 @@ export class App {
   startDay(id) {
     const day = DAY_BY_ID[id];
     this.closeModal();
+    this.tutorial = null;
     this.day = day;
     const level = buildLevel(day);
     this.game = new Game(level, {
@@ -793,13 +798,32 @@ export class App {
     this.paused = true;
     this.gestures.reset();
     this.game.pause();
+    if (this.tutorial) {
+      this.modal(
+        `<h2>Paused</h2><p class="muted">How to Play</p>
+        <div class="col">
+          <button class="btn primary" data-act="resume">Resume</button>
+          <button class="btn" data-act="skip">Skip the tutorial</button>
+          <button class="btn" data-act="options">Options</button>
+          ${fullscreenSupported() ? `<button class="btn" data-act="fullscreen">${this.fullscreenLabel()}</button>` : ''}
+          <button class="btn" data-act="title">Back to the Title</button>
+        </div>`,
+        {
+          '[data-act=resume]': () => this.resume(),
+          '[data-act=skip]': () => this.finishTutorial(),
+          '[data-act=options]': () => this.showOptions(() => this.pauseAgain()),
+          '[data-act=fullscreen]': () => toggleFullscreen(),
+          '[data-act=title]': () => this.showTitle(),
+        },
+      );
+      return;
+    }
     this.modal(
       `<h2>Paused</h2><p class="muted">${esc(this.dayLabel())}</p>
       <div class="col">
         <button class="btn primary" data-act="resume">Resume</button>
         <button class="btn" data-act="restart">Restart the day</button>
         <button class="btn" data-act="options">Options</button>
-        <button class="btn" data-act="howto">How to Play</button>
         ${fullscreenSupported() ? `<button class="btn" data-act="fullscreen">${this.fullscreenLabel()}</button>` : ''}
         <button class="btn" data-act="map">Retreat to the Map</button>
       </div>`,
@@ -808,10 +832,41 @@ export class App {
         '[data-act=fullscreen]': () => toggleFullscreen(),
         '[data-act=restart]': () => this.startDay(this.day.id),
         '[data-act=options]': () => this.showOptions(() => this.pauseAgain()),
-        '[data-act=howto]': () => this.showHowToPlay(() => this.pauseAgain()),
         '[data-act=map]': () => this.showMap(),
       },
     );
+  }
+
+  /** How to Play: the scripted tutorial day. It always ends on the map. */
+  startTutorial() {
+    this.closeModal();
+    this.tutorial = new TutorialRun(this, { onFinish: () => this.finishTutorial() });
+    this.game = this.tutorial.game;
+    this.day = null;
+    this.renderer.setGame(this.game);
+    this.renderer.unseenPowerups = new Set(POWERUP_IDS.filter((t) => !this.save.seenPowerups.includes(t)));
+    this.celebration = null;
+    this.scene = 'level';
+    this.paused = false;
+    this.endTimer = 0;
+    this.endShown = false;
+    this.acc = 0;
+    this.setUI(`
+      <div class="screen level-screen">
+        <button class="icon-btn pause-btn" data-act="pause" aria-label="Pause">❚❚</button>
+        <div class="tut-card" role="status" aria-live="polite"></div>
+      </div>`);
+    this.tutorial.render();
+    this.bindClicks({ '[data-act=pause]': () => this.pauseGame() });
+  }
+
+  /** Finished or skipped: the tutorial counts as seen, and the map opens. */
+  finishTutorial() {
+    if (!this.save.seenTutorial) {
+      this.save.seenTutorial = true;
+      this.persist();
+    }
+    this.showMap();
   }
 
   pauseAgain() {

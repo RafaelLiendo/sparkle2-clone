@@ -23,9 +23,10 @@ if (DIFFICULTY_BY_ID[difficulty]) {
 // `?day=d5` jumps straight into a day (handy for testing).
 const day = params.get('day');
 if (day) app.startDay(day);
-// `?scene=map|enchant|options` opens a screen directly (dev convenience).
+// `?scene=map|tutorial|enchant|options` opens a screen directly (dev convenience).
 const scene = params.get('scene');
 if (scene === 'map') app.showMap();
+else if (scene === 'tutorial') app.startTutorial();
 else if (scene === 'enchant') app.showEnchantments(() => app.showTitle());
 else if (scene === 'options') app.showOptions(() => app.showTitle());
 

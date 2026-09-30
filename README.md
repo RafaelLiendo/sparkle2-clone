@@ -28,20 +28,25 @@ Any static file server works too; ES modules just need `http://`, not `file://`.
 
 ### How to Play
 
-A four-page guide opens the first time a day is begun, and again from **How to Play** on the title, the map bar or the Pause menu:
+How to Play is a short scripted day. It starts from **Begin the Story** the first time, and again from **How to Play** on the title or the map bar. It always ends on the map.
 
-1. **Aim and fire**: the goal in two lines, plus the controls.
-2. **Swap orbs**: a live Slinger labels the loaded and next orbs. The player can try the swap right there with the real inputs (two-finger tap or tapping the Slinger; right-click, wheel or Space).
-3. **Combos and power-ups**: three matches in a row drop a power-up, and a shot collects it.
-4. **Play in full screen**: steps for computer, Android and iPhone/iPad, with this device's card first.
+The game rolls a fixed line in (blue, red, blue, red, blue, red, red, yellow, green, yellow, red, blue, tail to head) and takes aim by itself. At each lesson it stops, spotlights the target and waits for the one input it asks for. Any other click, tap or key is ignored.
 
-Controls for the current device (touch, or mouse and keys) come first. The first-run guide offers Skip, and it ends with "Begin the day".
+1. **Aim and fire**: click or tap the green orb. The shot lands beside it: two greens, no match yet.
+2. **Match three**: fire again to make three greens touch. The gap closes because yellow faces yellow.
+3. **Swap orbs**: the Slinger holds red, then yellow. Right-click, or tap the Slinger.
+4. **Combos**: fire between the yellows. They match, then the reds roll together and match on their own. Three in a row drops Purple Fire, and the recoil opens a gap.
+5. **Power-ups**: shoot the power-up through the gap before it closes.
+6. **Use them well**: fire the Purple Flame into the middle of the line, which clears it.
+7. **The day is won**: the Rune Circle is full and the field is empty. Click or tap anywhere to continue.
+
+The Slinger's orbs, the line and the power-up are scripted, so the run is deterministic. `planTutorial()` (`src/game/tutorialPlan.js`) plays it headlessly and finds each shot's aim by trying angles on forks of the game (`Game.fork()`) until the shot lands on its spot. The live tutorial replays those actions at the same simulation steps. The combo shot and the gap play in slow motion. The Pause menu offers **Skip the tutorial** and **Back to the Title**.
 
 ### Mobile
 
 - Touch uses Pointer Events. When a second finger lands, the Slinger swaps once. Nothing fires until every finger has lifted, so a two-finger tap never shoots. Logic in `src/touchGestures.js`.
 - Full screen uses the Fullscreen API and, on Android, locks to landscape. iPhone Safari cannot make a page full screen. There, **Add to Home Screen** installs the game from `manifest.webmanifest` (`display: fullscreen`, landscape) and it opens without browser bars.
-- In portrait on a touch screen, a "turn your device sideways" screen covers the game and a running day pauses.
+- In portrait on a touch screen, a screen covers the game and a running day pauses. Until the game is full screen or installed, it first offers full screen for this device: a **Full screen** button where the Fullscreen API exists (Android also turns to landscape), or the Add to Home Screen steps on iPhone. It ends with "or turn your device sideways to play without full screen".
 - On touch screens the round buttons are larger, and hover highlights are off so they don't stick after a tap.
 
 **Difficulty** — Normal, Hard or Nightmare — is chosen on the title screen or in Options and applies from the next day started; story progress is shared.
@@ -62,7 +67,7 @@ Options include **Reduced Flashing** (softer glows, fewer rings and motes — ap
 
 - `?day=d5` — jump straight into a day.
 - `?difficulty=normal|hard|nightmare` — override the saved difficulty for this session.
-- `?scene=map|enchant|options` — open a screen directly.
+- `?scene=map|tutorial|enchant|options` — open a screen directly.
 - `?debug` — stats overlay; while playing, keys `1…9 0 q w e r t` drop each of the 15 power-ups at the cursor, `u` drops a random one, `y` fills the Rune Circle.
 - `?tune.<key>=<value>` — override any tunable, e.g. `?tune.abyssGrace=5&tune.speedParams.base=2`.
 
@@ -83,12 +88,14 @@ src/
     track.js       one path: segments, gap attraction, pushers, feed, overtake, insertion
     slinger.js     queue, reload, overflow reserve, input buffer, cadence, fairness
     effects.js     timed-effect registry + Butterflies / Fireflies / Wrath of the Stars
+    tutorialPlan.js  the How to Play level and its planned beats (aims found on game forks)
   render/          orb art, painterly backgrounds, VFX, power-up glyphs, scene renderer
   ui/mapArt.js     parchment World Map
-  ui/tutorial.js   How to Play pages and their live illustrations
+  ui/tutorial.js   How to Play run: stepping, input gating, lesson card, spotlight overlay
+  ui/rotateHint.js portrait screen: full-screen steps for this device, or turn sideways
   audio.js         synthesised clicks, cracks, shimmer and the ambient bed
   app.js           scenes, DOM overlays, input, fixed-step (120 Hz) loop
-test/              node:test suites for the rules in §1–6 and the touch gestures
+test/              node:test suites for the rules in §1–6, the touch gestures and the tutorial script
 manifest.webmanifest, icon.svg, icon-*.png   web app manifest and icons
 ```
 

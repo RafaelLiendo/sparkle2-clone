@@ -14,7 +14,8 @@ export class Track {
   /**
    * @param {import('./game.js').Game} game
    * @param {import('../path.js').Path} path
-   * @param {{waves: Array<{stock:number, delay?:number}>}} def
+   * @param {{waves?: Array<{stock:number, delay?:number}>, orbs?: number[]}} def
+   *        `orbs` scripts the whole line (colour ids, tail → head) instead of waves.
    */
   constructor(game, path, def) {
     this.game = game;
@@ -29,7 +30,8 @@ export class Track {
     this.mouth = -CONFIG.spawnLeadOrbs;
     /** ids of orbs that face a colour-linked (attracting) gap — used for settle deferral. */
     this.attractEdges = new Set();
-    if (this.waveDefs.length) this.spawnWave(true);
+    if (def.orbs) this.spawnScripted(def.orbs);
+    else if (this.waveDefs.length) this.spawnWave(true);
   }
 
   // ---------------------------------------------------------------------------
@@ -96,7 +98,7 @@ export class Track {
       id: this.game.nextId++,
       s: this.mouth - 1,
       stock: w.stock,
-      mult: CONFIG.speedParams.rolloutMult,
+      mult: this.game.speedParams.rolloutMult,
       speed: 0,
       av: 0,
     };
@@ -120,6 +122,13 @@ export class Track {
     this.pushers.sort((a, b) => a.s - b.s);
     this.waveTimer = 0;
     return p;
+  }
+
+  /** A scripted line: exactly these colours (tail → head), prefilled with the head at s = 0. */
+  spawnScripted(colors) {
+    const n = colors.length;
+    colors.forEach((c, k) => this.orbs.push(this.makeOrb(c, k - n + 1)));
+    this.pushers.push({ id: this.game.nextId++, s: -n, stock: 0, mult: this.game.speedParams.rolloutMult, speed: 0, av: 0 });
   }
 
   /** Position-gated feed: prepend orbs at the mouth while the pusher is at/past it. */
@@ -182,7 +191,7 @@ export class Track {
     if (env.draining) return this.updateDrain(dt, env.drainSpeed);
 
     const C = CONFIG;
-    const sp = C.speedParams;
+    const sp = this.game.speedParams;
     const path = this.path;
 
     this.updateWaves(dt);

@@ -184,7 +184,7 @@ button:focus-visible {
   display: inline;
 }
 
-/* phone held upright: the 16:9 stage would be tiny, so ask for landscape */
+/* phone held upright: the 16:9 stage would be tiny, so offer full screen or ask for landscape */
 #rotate-hint {
   display: none;
 }
@@ -197,15 +197,13 @@ button:focus-visible {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 18px;
-    padding: 24px;
+    gap: 16px;
+    padding: 24px 28px;
     background: #070806;
     color: var(--ink);
-    font-family: Cinzel, Georgia, serif;
-    font-size: 20px;
     text-align: center;
   }
-  #rotate-hint svg {
+  #rotate-hint .rotate-icon {
     width: 96px;
     height: 96px;
     fill: none;
@@ -213,6 +211,52 @@ button:focus-visible {
     stroke-width: 2;
     stroke-linecap: round;
     stroke-linejoin: round;
+  }
+  #rotate-hint p {
+    margin: 0;
+  }
+  .rotate-main {
+    font-family: Cinzel, Georgia, serif;
+    font-size: 22px;
+    color: var(--gold-hi);
+  }
+  .rotate-text {
+    font-size: 18px;
+    color: var(--ink-dim);
+  }
+  .rotate-steps {
+    margin: 0;
+    padding-left: 1.4em;
+    max-width: 320px;
+    text-align: left;
+    font-size: 18px;
+    line-height: 1.4;
+  }
+  .rotate-steps li + li {
+    margin-top: 6px;
+  }
+  #rotate-hint .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-size: 20px;
+    padding: 12px 26px;
+  }
+  .rotate-or {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    margin-top: 14px !important;
+    max-width: 280px;
+    font-size: 17px;
+    color: var(--ink-dim);
+  }
+  .rotate-or .rotate-icon {
+    width: 48px !important;
+    height: 48px !important;
+    opacity: 0.8;
   }
 }
 
@@ -906,9 +950,42 @@ button:focus-visible {
 .title-help .hint {
   margin: 0;
 }
-.modal.tutorial {
-  position: relative;
-  padding-top: 20px;
+/* the lesson card sits inside the bend of the tutorial track, clear of every shot */
+.tut-card {
+  position: absolute;
+  left: 612px;
+  top: 236px;
+  width: 440px;
+  padding: 16px 22px 14px;
+  background: rgba(18, 16, 12, 0.82);
+  border: 1px solid #5d5440;
+  border-radius: 10px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(212, 171, 85, 0.1);
+  transition: opacity 0.3s, border-color 0.3s;
+}
+.tut-card.waiting {
+  border-color: var(--gold);
+  animation: tut-in 0.35s ease-out;
+}
+.tut-card.playing {
+  opacity: 0.85;
+}
+.tut-card.empty {
+  opacity: 0;
+}
+@keyframes tut-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+.tut-card h3 {
+  margin: 0 0 6px;
+  font-family: Cinzel, Georgia, serif;
+  font-weight: 600;
+  font-size: 24px;
+  letter-spacing: 0.04em;
+  color: var(--gold-hi);
 }
 .tut-step {
   margin: 0 0 4px;
@@ -918,108 +995,73 @@ button:focus-visible {
   text-transform: uppercase;
   color: var(--ink-dim);
 }
-.tut-skip {
-  position: absolute;
-  top: 16px;
-  right: 18px;
-}
-.tut-demo {
-  display: block;
-  margin: 2px auto 8px;
-  border-radius: 8px;
-  background: radial-gradient(ellipse at 50% 60%, rgba(60, 56, 44, 0.55), rgba(10, 10, 8, 0.2) 75%);
-}
 .tut-text {
+  margin: 0;
   font-size: 19px;
-  line-height: 1.4;
-  margin: 0 0 12px;
-}
-.tut-text.small {
-  font-size: 16px;
-  color: var(--ink-dim);
+  line-height: 1.38;
 }
 .tut-text b,
-.ctl b,
-.fs-card b {
+.rotate-steps b {
   color: var(--gold-hi);
   font-weight: 500;
 }
-kbd {
-  font-family: Cinzel, Georgia, serif;
-  font-size: 0.8em;
-  padding: 1px 6px;
-  border: 1px solid #6a5a3a;
-  border-bottom-width: 2px;
-  border-radius: 4px;
-  background: rgba(60, 50, 30, 0.6);
-  color: var(--gold-hi);
-}
-.controls {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  text-align: left;
-}
-.ctl {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-  padding: 7px 12px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  font-size: 17px;
-  color: var(--ink-dim);
-}
-.ctl.here {
-  border-color: #6a5a3a;
-  background: rgba(60, 50, 30, 0.45);
-  color: var(--ink);
-}
-.ctl-lbl {
-  flex: none;
-  width: 118px;
-  font-family: Cinzel, Georgia, serif;
-  font-size: 13px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ink-dim);
-}
-.ctl.here .ctl-lbl {
-  color: var(--gold-hi);
-}
-.try {
-  margin: 10px 0 0;
-  font-style: italic;
-  color: var(--gold-hi);
-}
-.fs-cards {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  text-align: left;
-}
-.fs-card {
-  padding: 8px 14px;
-  border: 1px solid #4d4636;
-  border-radius: 8px;
-  color: var(--ink-dim);
-}
-.fs-card.here {
-  border-color: var(--gold);
-  background: rgba(60, 50, 30, 0.45);
-  color: var(--ink);
-}
-.fs-card p {
-  margin: 4px 0 0;
-  font-size: 16px;
-  line-height: 1.35;
-}
-.fs-name {
+.tut-prompt {
   display: flex;
   align-items: center;
+  gap: 10px;
+  margin: 12px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid rgba(212, 171, 85, 0.3);
   font-family: Cinzel, Georgia, serif;
-  font-size: 15px;
+  font-size: 17px;
   color: var(--gold-hi);
+}
+.tut-glyph {
+  flex: none;
+  position: relative;
+  width: 18px;
+  height: 26px;
+  border: 2px solid var(--gold-hi);
+  border-radius: 9px;
+}
+.tut-glyph.mouse::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 50%;
+  height: 10px;
+  border-right: 1px solid var(--gold-hi);
+  border-bottom: 1px solid var(--gold-hi);
+  border-radius: 7px 0 0 0;
+  background: var(--gold);
+}
+.tut-glyph.mouse.right::before {
+  left: auto;
+  right: 0;
+  border-right: none;
+  border-left: 1px solid var(--gold-hi);
+  border-radius: 0 7px 0 0;
+}
+.tut-glyph.touch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(242, 213, 140, 0.25);
+}
+@media (pointer: coarse) {
+  .tut-card {
+    width: 470px;
+  }
+  .tut-card h3 {
+    font-size: 26px;
+  }
+  .tut-text {
+    font-size: 21px;
+  }
+  .tut-prompt {
+    font-size: 19px;
+  }
 }
 .glyph {
   display: inline-block;
@@ -1031,34 +1073,6 @@ kbd {
   stroke-width: 2.2;
   stroke-linecap: round;
   stroke-linejoin: round;
-}
-.row.tight {
-  margin-top: 12px;
-}
-.tut-nav {
-  display: flex;
-  align-items: center;
-  margin-top: 18px;
-}
-.tut-side {
-  flex: 1;
-  display: flex;
-}
-.tut-side.right {
-  justify-content: flex-end;
-}
-.dots {
-  display: flex;
-  gap: 8px;
-}
-.dot {
-  width: 8px;
-  height: 8px;
-  transform: rotate(45deg);
-  border: 1px solid #8a6a30;
-}
-.dot.on {
-  background: var(--gold);
 }
 .map-bar .btn {
   white-space: nowrap;

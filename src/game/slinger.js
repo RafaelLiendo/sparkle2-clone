@@ -24,6 +24,7 @@ export class Slinger {
 
   /** Fresh orb; enchantment cadence counters tick here (generation time). */
   generate() {
+    if (this.game.ammoScript.length) return { kind: 'normal', color: this.game.ammoScript.shift() };
     const e = this.game.enchant;
     const n = ++this.genCount;
     if (e.flamePurple && n % CONFIG.flamePurpleEvery === 0) return { kind: 'purple', color: null };

@@ -12,8 +12,9 @@ import { sameColor, Track } from './track.js';
 export class Game {
   /**
    * @param {object} level level definition (see levels.js)
-   * @param {{seed?:number, enchantments?:string[], powerups?:string[], difficulty?:string}} opts
+   * @param {{seed?:number, enchantments?:string[], powerups?:string[], difficulty?:string, ammo?:number[]}} opts
    *        `difficulty` scales line speed by `CONFIG.difficultySpeed`; omitted means ×1.
+   *        `ammo` scripts the Slinger's first orbs (colour ids) before random generation.
    */
   constructor(level, opts = {}) {
     this.level = level;
@@ -21,6 +22,7 @@ export class Game {
     this.enchant = {};
     for (const id of opts.enchantments || []) this.enchant[id] = true;
     this.powerupPool = (opts.powerups || POWERUP_IDS).slice();
+    this.ammoScript = (opts.ammo || []).slice();
     this.nextId = 1;
     this.time = 0;
     this.state = 'playing'; // playing | draining | won | lost
@@ -44,6 +46,8 @@ export class Game {
     if (e.redNoMore && colors.length > 2) colors = colors.filter((c) => c !== RED);
     this.lineColors = colors;
     this.difficulty = opts.difficulty ?? null;
+    // a level may override any speedParams field (the tutorial rolls in faster)
+    this.speedParams = { ...CONFIG.speedParams, ...level.speed };
     this.speedBase = (level.speed?.base ?? CONFIG.speedParams.base) * (CONFIG.difficultySpeed[this.difficulty] ?? 1);
     this.enchantMult =
       (e.tar ? CONFIG.tarMult : 1) * (e.tranquility ? CONFIG.tranquilityMult : 1) * (e.redNoMore ? CONFIG.redNoMoreMult : 1);
@@ -117,6 +121,43 @@ export class Game {
     let n = 0;
     for (const t of this.tracks) n += t.orbs.length;
     return n;
+  }
+
+  /**
+   * Independent deep copy that continues exactly as this game would. Paths and the level
+   * are immutable and shared; everything else (orbs, tracks, rng, effects) is copied.
+   */
+  fork() {
+    const seen = new Map();
+    const shared = new Set([this.level, ...this.paths]);
+    const copy = (v) => {
+      if (v === null || typeof v !== 'object' || shared.has(v)) return v;
+      if (seen.has(v)) return seen.get(v);
+      if (Array.isArray(v)) {
+        const a = [];
+        seen.set(v, a);
+        for (const x of v) a.push(copy(x));
+        return a;
+      }
+      if (v instanceof Map) {
+        const m = new Map();
+        seen.set(v, m);
+        for (const [k, x] of v) m.set(copy(k), copy(x));
+        return m;
+      }
+      if (v instanceof Set) {
+        const s = new Set();
+        seen.set(v, s);
+        for (const x of v) s.add(copy(x));
+        return s;
+      }
+      if (ArrayBuffer.isView(v)) return v.slice();
+      const o = Object.create(Object.getPrototypeOf(v));
+      seen.set(v, o);
+      for (const k of Object.keys(v)) o[k] = copy(v[k]);
+      return o;
+    };
+    return copy(this);
   }
 
   // ---------------------------------------------------------------------------

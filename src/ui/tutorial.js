@@ -1,445 +1,366 @@
-// How to Play: four short pages (aim and fire, swap, combos and power-ups, full screen),
-// each with a small live illustration drawn with the game's own art. The swap page can be
-// tried for real, with the same inputs as during a day.
+// How to Play: a short scripted day. The game rolls the line in and takes aim on its own,
+// then stops at each lesson and waits for the one input it asks for (fire at the marked
+// spot, swap, or continue); anything else is ignored. The script and the aims come from
+// planTutorial(), so every shot lands where the lesson needs it.
 
 import { CONFIG } from '../config.js';
-import { COLORS } from '../defs.js';
-import { fullscreenSupported, isFullscreen, platform, toggleFullscreen } from '../fullscreen.js';
-import { drawPowerupIcon } from '../render/icons.js';
-import { TouchGestures } from '../touchGestures.js';
+import { applyBeat, newTutorialGame, planTutorial } from '../game/tutorialPlan.js';
 
+const STEP = 1 / CONFIG.simHz;
+const D = CONFIG.orbDiameterPx;
 const COARSE = matchMedia('(pointer: coarse)');
 const REDUCED_MOTION = matchMedia('(prefers-reduced-motion: reduce)');
+const SLOW_MO = 0.45;
 
-const DEMO_W = 440;
-const DEMO_H = 170;
-const D = CONFIG.orbDiameterPx;
-const SWAP_SLINGER = { x: 170, y: 88, k: 0.85 };
-
-const FS_GLYPH = '<svg class="glyph" viewBox="0 0 24 24" aria-label="full-screen button"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" /></svg>';
-const SHARE_GLYPH = '<svg class="glyph" viewBox="0 0 24 24" aria-label="Share"><path d="M12 3v12M8 7l4-4 4 4M7 10H5v11h14V10h-2" /></svg>';
-
-const clamp01 = (v) => Math.max(0, Math.min(1, v));
-
-/** Touch and mouse/keyboard rows; the one for this device comes first and stands out. */
-function controls(touch, mouse) {
-  const row = (lbl, text, here) => `<div class="ctl${here ? ' here' : ''}"><span class="ctl-lbl">${lbl}</span><span>${text}</span></div>`;
-  const t = row('Touch', touch, COARSE.matches);
-  const m = row('Mouse &amp; keys', mouse, !COARSE.matches);
-  return `<div class="controls">${COARSE.matches ? t + m : m + t}</div>`;
-}
-
-function fullscreenCards() {
-  const cards = {
-    desktop: {
-      name: 'Computer',
-      text: `Press <kbd>F</kbd>, or click ${FS_GLYPH} in the top-right corner of the title or map. During a day, open the Pause menu and choose <b>Full screen</b>. <kbd>F</kbd> or <kbd>Esc</kbd> leaves it.`,
-    },
-    android: {
-      name: 'Android',
-      text: `Tap ${FS_GLYPH} in the top-right corner of the title or map, or <b>Full screen</b> in the Pause menu. The game turns to landscape. Go back to leave.`,
-    },
-    ios: {
-      name: 'iPhone &amp; iPad',
-      text: `Safari can't make a page full screen on iPhone. Tap Share ${SHARE_GLYPH}, choose <b>Add to Home Screen</b>, then open the game from its new icon: it plays full screen, without the browser bars. On iPad, ${FS_GLYPH} works as well.`,
-    },
-  };
-  const here = platform();
-  const order = [here, ...Object.keys(cards).filter((k) => k !== here)];
-  return `<div class="fs-cards">${order
-    .map((k) => `<div class="fs-card${k === here ? ' here' : ''}"><div class="fs-name">${cards[k].name}${k === here ? '<span class="new-tag">This device</span>' : ''}</div><p>${cards[k].text}</p></div>`)
-    .join('')}</div>`;
-}
-
-const PAGES = [
-  {
-    id: 'aim',
-    title: 'Aim and fire',
-    demo: true,
-    body: () => `<p class="tut-text">Orbs roll along the track toward the Abyss. Fire an orb into the line: three or more of one colour together crumble away. Fill the Rune Circle around the Slinger, then clear what is left.</p>
-      ${controls('Hold anywhere to aim: a dotted guide shows the path. Lift your finger to fire.', 'Move the mouse to aim along the dotted guide. Click to fire.')}`,
-  },
-  {
-    id: 'swap',
-    title: 'Swap orbs',
-    demo: true,
-    body: () => `<p class="tut-text">The Slinger holds the <b>loaded</b> orb, large and in front, and the <b>next</b> orb, smaller, behind it. A swap trades the two. Use it when the loaded colour has nowhere good to go, or to hold a power-up orb back for the right moment. Swapping never breaks a combo.</p>
-      ${controls('Tap with <b>two fingers</b> anywhere, or tap the Slinger.', '<b>Right-click</b>, roll the <b>mouse wheel</b>, or press <kbd>Space</kbd>.')}
-      <p class="try" aria-live="polite">Try it here: ${COARSE.matches ? 'tap with two fingers' : 'right-click or press Space'}.</p>`,
-  },
-  {
-    id: 'combo',
-    title: 'Combos and power-ups',
-    demo: true,
-    body: () => `<p class="tut-text">Each match in a row adds to your combo. Every <b>third</b> one (3, 6, 9…) drops a power-up onto the field: <b>shoot it</b> with any orb to collect it before it fades. A shot that matches nothing starts the combo over.</p>
-      <p class="tut-text small">Some power-ups load a special orb into the Slinger to fire when you choose; the rest act the moment you collect them.</p>`,
-  },
-  {
-    id: 'fullscreen',
-    title: 'Play in full screen',
-    body: () => `${fullscreenCards()}
-      ${fullscreenSupported() ? `<div class="row tight"><button class="btn small" data-act="fullscreen">${isFullscreen() ? 'Exit full screen' : 'Full screen'}</button></div>` : ''}`,
-  },
-];
+const popOf = (color, combo) => (ev) => ev.type === 'pop' && ev.combo === combo && ev.points.every((p) => p.color === color);
 
 /**
- * Open the How to Play modal.
- * @param app the App (modal, audio, renderer, settings)
- * @param opts.first first run before a day: offers Skip and ends with "Begin the day"
- * @param opts.onDone called after the last page, or after Skip
+ * One lesson per beat. `prompt` is [mouse, touch]; while the action plays out, `react` pairs
+ * a game event with the line the card shows once it happens.
  */
-export function showTutorial(app, { first = false, onDone }) {
-  const renderer = app.renderer;
-  const art = renderer.art;
-  let page = 0;
-  let tried = false; // the player swapped on the swap page
-  let lastSwap = -10; // demo clock time of the latest swap (drives the arrows)
-  let autoSwaps = 0;
-  const queue = [
-    { kind: 'normal', color: 1 },
-    { kind: 'normal', color: 3 },
-    { kind: 'normal', color: 0 },
-  ];
-  const start = performance.now();
-  const clock = () => (performance.now() - start) / 1000;
+const LESSONS = {
+  fire1: {
+    title: 'Aim and fire',
+    text: 'Orbs roll along the track toward the Abyss. Your Slinger has taken aim at the <b>green</b> orb.',
+    prompt: ['Click the green orb to fire', 'Tap the green orb to fire'],
+    react: [[(ev) => ev.type === 'insert', 'Two greens side by side. One more makes a match…']],
+  },
+  fire2: {
+    title: 'Match three',
+    text: 'Three or more orbs of one colour touching crumble away. Fire once more to complete the set.',
+    prompt: ['Click the greens to fire', 'Tap the greens to fire'],
+    react: [[popOf(2, 1), 'Matched! When the colours on either side of a gap match, it pulls itself closed.']],
+  },
+  swap: {
+    title: 'Swap orbs',
+    text: 'No greens left. The Slinger holds a <b>red</b> orb, with a <b>yellow</b> one waiting behind it. Yellow is the one you want.',
+    prompt: ['Right-click to swap them', 'Tap the Slinger to swap them'],
+    react: [[(ev) => ev.type === 'swap', 'Yellow is loaded now.']],
+  },
+  fire3: {
+    title: 'Combos',
+    text: 'Matches in a row build a combo, and every <b>third</b> one drops a power-up. Fire between the two yellows and watch what follows.',
+    prompt: ['Click between the yellows', 'Tap between the yellows'],
+    react: [
+      [popOf(3, 2), 'The yellows match…'],
+      [popOf(0, 3), '…and the reds roll together and match on their own. Three in a row!'],
+    ],
+  },
+  collect: {
+    title: 'Power-ups',
+    text: 'Three in a row: a power-up! The recoil has opened a gap in the line. Shoot the power-up through it before it closes.',
+    prompt: ['Click the power-up', 'Tap the power-up'],
+    react: [[(ev) => ev.type === 'collect', '<b>Purple Fire</b> loaded: a flame that blasts every orb around the spot it lands.']],
+  },
+  blast: {
+    title: 'Use them well',
+    text: 'Power-ups are strong. Keep them for the moment they do the most good. Fire the Purple Flame into the middle of the line.',
+    prompt: ['Click the middle of the line', 'Tap the middle of the line'],
+    react: [[(ev) => ev.type === 'sealed', 'The Rune Circle is complete!']],
+  },
+  end: {
+    title: 'The day is won',
+    text: 'Every orb you destroy fills the <b>Rune Circle</b> around the Slinger. When the Circle is complete and the last orbs are gone, the day is won.',
+    prompt: ['Click anywhere to continue', 'Tap anywhere to continue'],
+    react: [],
+  },
+};
 
-  const el = app.modal('', {});
-  const modal = el.querySelector('.modal');
-  modal.classList.add('roomy', 'tutorial');
+const easeInOut = (u) => (u < 0.5 ? 2 * u * u : 1 - (-2 * u + 2) ** 2 / 2);
+const angleLerp = (a, b, u) => a + (((b - a + Math.PI * 3) % (Math.PI * 2)) - Math.PI) * u;
 
-  const onSwapPage = () => PAGES[page].id === 'swap';
-  const swap = (byPlayer) => {
-    [queue[0], queue[1]] = [queue[1], queue[0]];
-    lastSwap = clock();
-    if (!byPlayer) return;
-    app.audio.unlock();
-    app.audio.handle([{ type: 'swap' }]);
-    if (!tried) {
-      tried = true;
-      const msg = modal.querySelector('.try');
-      if (msg) msg.textContent = 'That’s a swap: the next orb is loaded now.';
-    }
-  };
-
-  // --- try-the-swap input: the same gestures as in a day ---------------------------
-  const demoPoint = (e) => {
-    const c = modal.querySelector('canvas.tut-demo');
-    if (!c) return { x: -1e4, y: -1e4 };
-    const r = c.getBoundingClientRect();
-    return { x: ((e.clientX - r.left) / r.width) * DEMO_W, y: ((e.clientY - r.top) / r.height) * DEMO_H };
-  };
-  const gestures = new TouchGestures({
-    aim() {},
-    fire() {},
-    swap: () => onSwapPage() && swap(true),
-    onSlinger: (x, y, r) => Math.hypot(x - SWAP_SLINGER.x, y - SWAP_SLINGER.y) < r * SWAP_SLINGER.k,
-  });
-  el.addEventListener('contextmenu', (e) => e.preventDefault());
-  el.addEventListener('pointerdown', (e) => {
-    if (e.pointerType === 'mouse') {
-      if (e.button === 2 && onSwapPage()) swap(true);
-      return;
-    }
-    const p = demoPoint(e);
-    gestures.down(e.pointerId, p.x, p.y);
-  });
-  el.addEventListener('pointerup', (e) => {
-    if (e.pointerType === 'mouse') return;
-    const p = demoPoint(e);
-    gestures.up(e.pointerId, p.x, p.y);
-  });
-  el.addEventListener('pointercancel', (e) => gestures.cancel(e.pointerId));
-  el.addEventListener(
-    'wheel',
-    (e) => {
-      if (!onSwapPage()) return;
-      e.preventDefault();
-      swap(true);
-    },
-    { passive: false },
-  );
-  const isSwapKey = (e) => e.code === 'Space' || e.code === 'KeyS';
-  const onKeyDown = (e) => {
-    if (!el.isConnected) return cleanup();
-    if (onSwapPage() && isSwapKey(e)) {
-      // Space would otherwise press the focused button
-      e.preventDefault();
-      if (!e.repeat) swap(true);
-    } else if (e.code === 'ArrowRight' && page < PAGES.length - 1) go(page + 1);
-    else if (e.code === 'ArrowLeft' && page > 0) go(page - 1);
-  };
-  const onKeyUp = (e) => {
-    if (onSwapPage() && isSwapKey(e)) e.preventDefault();
-  };
-  window.addEventListener('keydown', onKeyDown, true);
-  window.addEventListener('keyup', onKeyUp, true);
-  function cleanup() {
-    window.removeEventListener('keydown', onKeyDown, true);
-    window.removeEventListener('keyup', onKeyUp, true);
+export class TutorialRun {
+  /** @param app the App (renderer, audio, settings, ui) */
+  constructor(app, { onFinish }) {
+    this.app = app;
+    this.onFinish = onFinish;
+    const plan = planTutorial();
+    this.beats = plan.beats;
+    this.slow = plan.slow;
+    this.game = newTutorialGame();
+    this.step = 0;
+    this.acc = 0;
+    this.index = 0; // the next beat
+    this.holding = false;
+    this.clock = 0; // real seconds since the start
+    this.holdAt = 0; // clock time the current hold began
+    this.nudgeAt = -10; // clock time of the latest ignored input
+    this.aimStart = null;
+    this.last = null; // the lesson just completed
+    this.reaction = ''; // the card's line while that lesson's action plays out
+    this.callouts = [];
   }
 
-  // --- pages -------------------------------------------------------------------------
-  const finish = () => {
-    cleanup();
-    app.closeModal();
-    onDone();
-  };
-  const go = (i) => {
-    page = i;
-    render();
-  };
-  const render = () => {
-    const p = PAGES[page];
-    const last = page === PAGES.length - 1;
-    const dots = PAGES.map((_, i) => `<span class="dot${i === page ? ' on' : ''}"></span>`).join('');
-    const nextLabel = last ? (first ? 'Begin the day' : 'Done') : 'Next';
-    modal.innerHTML = `
-      ${first && !last ? '<button class="btn small tut-skip" data-act="skip">Skip</button>' : ''}
-      <p class="tut-step">How to Play · ${page + 1} of ${PAGES.length}</p>
-      <h2>${p.title}</h2>
-      ${p.demo ? `<canvas class="tut-demo" aria-hidden="true"></canvas>` : ''}
-      ${p.body()}
-      <div class="tut-nav">
-        <div class="tut-side">${page > 0 ? '<button class="btn small" data-act="back">Back</button>' : ''}</div>
-        <div class="dots" aria-hidden="true">${dots}</div>
-        <div class="tut-side right"><button class="btn primary" data-act="next">${nextLabel}</button></div>
-      </div>`;
-    const c = modal.querySelector('canvas.tut-demo');
-    if (c) {
-      const k = renderer.scale;
-      c.style.width = `${DEMO_W}px`;
-      c.style.height = `${DEMO_H}px`;
-      c.width = Math.round(DEMO_W * k);
-      c.height = Math.round(DEMO_H * k);
-    }
-    const on = (sel, fn) =>
-      modal.querySelector(sel)?.addEventListener('click', () => {
-        app.audio.unlock();
-        app.audio.ui();
-        fn();
-      });
-    on('[data-act=next]', () => (last ? finish() : go(page + 1)));
-    on('[data-act=back]', () => go(page - 1));
-    on('[data-act=skip]', finish);
-    on('[data-act=fullscreen]', () => toggleFullscreen());
-    modal.querySelector('[data-act=next]').focus();
-  };
+  get beat() {
+    return this.beats[this.index] || null;
+  }
 
-  // --- illustrations -----------------------------------------------------------------
-  const fakeGame = (q, angle) => ({ slinger: { x: 0, y: 0, queue: q, angle, kick: 0 }, pipsLit: () => 5, sealed: false });
-  const slinger = (ctx, x, y, k, q, angle, t) => {
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.scale(k, k);
-    renderer.drawSlinger(ctx, fakeGame(q, angle), t);
-    ctx.restore();
-  };
-  const label = (ctx, text, x, y, color = '#e9dcc0', size = 15, align = 'left') => {
-    ctx.font = `600 ${size}px Cinzel, Georgia, serif`;
-    ctx.textAlign = align;
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = color;
-    ctx.fillText(text, x, y);
-  };
-  const pip = (ctx, x, y, s, lit) => {
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.scale(s, s);
-    if (lit) {
-      const g = ctx.createRadialGradient(0, 0, 0, 0, 0, 12);
-      g.addColorStop(0, `rgba(255,210,122,${app.settings.reducedFlashing ? 0.2 : 0.4})`);
-      g.addColorStop(1, 'rgba(255,210,122,0)');
-      ctx.fillStyle = g;
-      ctx.beginPath();
-      ctx.arc(0, 0, 12, 0, Math.PI * 2);
-      ctx.fill();
+  /** The dotted guide shows while the Slinger takes aim and while a shot waits. */
+  get showGuide() {
+    const b = this.beat;
+    return !!b && b.action === 'fire' && (this.holding || this.step >= b.aimFrom);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Stepping
+
+  /** Run the fixed-step sim for `dt` real seconds, stopping at the next beat. */
+  advance(dt) {
+    this.clock += dt;
+    if (this.holding) return;
+    const scale = this.slow.some(([a, b]) => this.step >= a && this.step < b) ? SLOW_MO : 1;
+    this.acc += dt * scale;
+    let n = 0;
+    while (!this.atBeat() && this.acc >= STEP && n < 24) {
+      this.aimTick();
+      this.game.update(STEP);
+      this.step++;
+      this.acc -= STEP;
+      n++;
     }
-    ctx.strokeStyle = lit ? 'rgba(255,214,130,0.95)' : 'rgba(120,105,80,0.6)';
-    ctx.lineWidth = 2 / s;
+    if (n >= 24) this.acc = 0;
+    if (this.atBeat()) this.hold();
+  }
+
+  atBeat() {
+    return !!this.beat && this.step === this.beat.pauseAt;
+  }
+
+  /** Ease the Slinger onto the beat's angle; only the angle at the shot counts, so this is cosmetic. */
+  aimTick() {
+    const b = this.beat;
+    if (!b || b.angle == null || this.step < b.aimFrom) return;
+    const s = this.game.slinger;
+    this.aimStart ??= s.angle;
+    const u = Math.min(1, (this.step + 1 - b.aimFrom) / Math.max(1, b.pauseAt - b.aimFrom));
+    s.angle = angleLerp(this.aimStart, b.angle, easeInOut(u));
+  }
+
+  hold() {
+    this.holding = true;
+    this.holdAt = this.clock;
+    this.acc = 0;
+    const b = this.beat;
+    if (b.angle != null) this.game.slinger.angle = b.angle;
+    this.aimStart = null;
+    this.render();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Input
+
+  /**
+   * A player input: 'fire' (left click / tap release, with its logical point), 'swap'
+   * (right click / tap on the Slinger / two-finger tap) or 'other'. Only the input the
+   * current lesson asks for does anything.
+   */
+  input(kind, p) {
+    if (!this.holding) return;
+    const b = this.beat;
+    let ok = b.action === 'continue';
+    if (b.action === 'swap') ok = kind === 'swap';
+    if (b.action === 'fire') {
+      const reach = b.target.r + (COARSE.matches ? 60 : 35);
+      ok = kind === 'fire' && !!p && Math.hypot(p.x - b.target.x, p.y - b.target.y) <= reach;
+    }
+    if (!ok) {
+      this.nudgeAt = this.clock;
+      return;
+    }
+    if (b.action === 'continue') {
+      this.holding = false;
+      this.onFinish();
+      return;
+    }
+    this.holding = false;
+    this.last = b;
+    this.reaction = '';
+    applyBeat(this.game, b);
+    this.handleEvents(this.game.events.slice(), false); // a swap reports at once
+    this.index++;
+    this.render();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Feedback
+
+  /** The card reacts as the lesson's action plays out; calm labels count the combo up. */
+  handleEvents(events, callouts = true) {
+    const react = this.last && !this.holding ? LESSONS[this.last.id].react : [];
+    let text = null;
+    for (const ev of events) {
+      if (callouts && ev.type === 'pop' && ev.combo > 0) this.callouts.push({ text: ev.combo === 1 ? 'Match' : `Combo ×${ev.combo}`, x: ev.x, y: ev.y - 50, t: 0 });
+      for (const [when, line] of react) if (when(ev)) text = line;
+    }
+    if (text !== null && text !== this.reaction) {
+      this.reaction = text;
+      this.render();
+    }
+  }
+
+  /** The lesson card (DOM): the prompt while waiting, a short reaction while the action plays. */
+  render() {
+    const el = this.app.ui.querySelector('.tut-card');
+    if (!el) return;
+    const touch = COARSE.matches ? 1 : 0;
+    const total = this.beats.length;
+    if (this.holding) {
+      const L = LESSONS[this.beat.id];
+      el.className = 'tut-card waiting';
+      el.innerHTML = `<p class="tut-step">How to Play · ${this.index + 1} of ${total}</p>
+        <h3>${L.title}</h3>
+        <p class="tut-text">${L.text}</p>
+        <p class="tut-prompt"><span class="tut-glyph ${touch ? 'touch' : 'mouse'}${this.beat.action === 'swap' && !touch ? ' right' : ''}" aria-hidden="true"></span>${L.prompt[touch]}</p>`;
+      return;
+    }
+    const text = this.last ? this.reaction : 'Watch the line of orbs roll in…';
+    el.className = `tut-card playing${text ? '' : ' empty'}`;
+    el.innerHTML = `<p class="tut-step">How to Play</p><p class="tut-text">${text}</p>`;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Overlay (canvas, drawn over the scene)
+
+  drawOverlay(ctx, dt) {
+    const k = this.app.renderer.scale;
+    ctx.setTransform(k, 0, 0, k, 0, 0);
+    this.drawCallouts(ctx, dt);
+    if (!this.holding) return;
+    const b = this.beat;
+    const tgt = b.target;
+    const t = this.clock - this.holdAt;
+    const fade = Math.min(1, t / 0.35);
+    const still = REDUCED_MOTION.matches;
+    // dim the field, leaving a pool of light on what the lesson is about
+    const r0 = tgt.r * 1.5;
+    const g = ctx.createRadialGradient(tgt.x, tgt.y, r0, tgt.x, tgt.y, r0 + 190);
+    g.addColorStop(0, 'rgba(6,5,3,0)');
+    g.addColorStop(1, `rgba(6,5,3,${0.42 * fade})`);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, CONFIG.canvasW, CONFIG.canvasH);
+    // pulsing ring; an ignored input makes it bump once
+    const nudge = Math.max(0, 1 - (this.clock - this.nudgeAt) / 0.35);
+    const pulse = still ? 0 : Math.sin(t * 3.2) * 3;
+    ctx.save();
+    ctx.globalAlpha = fade * (0.55 + (still ? 0.2 : 0.25 * Math.sin(t * 3.2)));
+    ctx.strokeStyle = '#F2D58C';
+    ctx.lineWidth = 2 + nudge * 1.5;
     ctx.beginPath();
-    ctx.moveTo(0, -5);
-    ctx.lineTo(3.5, 0);
-    ctx.lineTo(0, 5);
-    ctx.lineTo(-3.5, 0);
-    ctx.closePath();
+    ctx.arc(tgt.x, tgt.y, tgt.r + 6 + pulse + nudge * 8, 0, Math.PI * 2);
     ctx.stroke();
     ctx.restore();
-  };
+    if (b.action !== 'continue') this.drawGhost(ctx, b, t, fade, still);
+  }
 
-  const AIM_ROW = [0, 0, 1, 3, 3, 2, 1, 1, 3, 0, 2, 2, 1];
-  const drawAim = (ctx, t) => {
-    const y0 = 30;
-    AIM_ROW.forEach((c, i) => {
-      const x = 22 + i * 33;
-      art.drawShadow(ctx, x, y0, 30, 0.5);
-      art.drawOrb(ctx, x, y0, 30, c, false, 0.9, 0, t);
-    });
-    const sx = 220;
-    const sy = 118;
-    const k = 0.72;
-    const a = -Math.PI / 2 + (REDUCED_MOTION.matches ? 0.3 : 0.5 * Math.sin(t * 0.8));
-    // dotted guide in the loaded orb's colour, stopping at the line
-    const len = (sy - (y0 + 16)) / -Math.sin(a);
-    ctx.fillStyle = COLORS[queue[0].color].glow;
-    for (let d = D * k * 0.9; d < len; d += 13) {
-      ctx.globalAlpha = 0.85 * (1 - (d / len) * 0.6);
+  /** A ghost cursor (or fingertip) that shows the input: it glides to the target and clicks. */
+  drawGhost(ctx, b, t, fade, still) {
+    const tgt = b.target;
+    const touch = COARSE.matches;
+    const period = 2.4;
+    const u = still ? 1 : (t % period) / period;
+    const glide = easeInOut(Math.min(1, u / 0.45));
+    const hx = b.action === 'swap' ? tgt.x + tgt.r * 0.35 : tgt.x;
+    const hy = b.action === 'swap' ? tgt.y + tgt.r * 0.35 : tgt.y;
+    const x = hx + (1 - glide) * 70;
+    const y = hy + (1 - glide) * 80;
+    const press = still ? 0 : Math.max(0, 1 - Math.abs(u - 0.55) / 0.08);
+    const ripple = u - 0.55;
+    ctx.save();
+    ctx.globalAlpha = fade * (u > 0.85 ? 1 - (u - 0.85) / 0.15 : 1);
+    if (!still && ripple > 0 && ripple < 0.3) {
+      ctx.strokeStyle = `rgba(242,213,140,${0.6 * (1 - ripple / 0.3)})`;
+      ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.arc(sx + Math.cos(a) * d, sy + Math.sin(a) * d, 2.4, 0, Math.PI * 2);
+      ctx.arc(hx, hy, 10 + ripple * 90, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    if (touch) {
+      ctx.fillStyle = 'rgba(233,220,192,0.35)';
+      ctx.strokeStyle = 'rgba(233,220,192,0.9)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(x, y, 15 - press * 3, 0, Math.PI * 2);
       ctx.fill();
+      ctx.stroke();
+    } else if (b.action === 'swap') {
+      drawMouse(ctx, x + 14, y + 14, press);
+    } else {
+      drawArrow(ctx, x, y, press);
     }
-    ctx.globalAlpha = 1;
-    slinger(ctx, sx, sy, k, queue, a, t);
-  };
+    ctx.restore();
+  }
 
-  const drawSwap = (ctx, t) => {
-    const { x, y, k } = SWAP_SLINGER;
-    // demonstrate on a loop until the player has tried it
-    if (!tried && !REDUCED_MOTION.matches) {
-      const n = Math.floor((t - 1.2) / 2.6);
-      if (n >= 0 && n + 1 > autoSwaps) {
-        autoSwaps = n + 1;
-        swap(false);
-      }
-    }
-    slinger(ctx, x, y, k, queue, -Math.PI / 2, t);
-    // loaded / next callouts
-    const loadedY = y - 0.17 * D * k;
-    const nextY = y + 0.57 * D * k;
-    ctx.strokeStyle = 'rgba(212,171,85,0.7)';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.moveTo(x + D * k * 0.52, loadedY - 4);
-    ctx.lineTo(x + 92, y - 32);
-    ctx.lineTo(x + 108, y - 32);
-    ctx.moveTo(x + D * k * 0.36, nextY + 3);
-    ctx.lineTo(x + 92, y + 42);
-    ctx.lineTo(x + 108, y + 42);
-    ctx.stroke();
-    label(ctx, 'Loaded', x + 114, y - 32, '#f2d58c');
-    label(ctx, 'Next', x + 114, y + 42, '#e9dcc0');
-    label(ctx, 'fires now', x + 114, y - 14, '#b8a888', 12);
-    label(ctx, 'waits behind', x + 114, y + 60, '#b8a888', 12);
-    // swap arrows, fading after each swap
-    const since = t - lastSwap;
-    if (since < 1.1) {
-      const alpha = 1 - clamp01((since - 0.5) / 0.6);
+  drawCallouts(ctx, dt) {
+    const alive = [];
+    for (const c of this.callouts) {
+      c.t += this.holding ? Math.max(dt * 3, 0) : dt; // a waiting lesson clears the stage
+      if (c.t > 1.8) continue;
+      alive.push(c);
+      if (c.t < 0) continue;
+      const a = Math.min(1, c.t / 0.25) * (c.t > 1.2 ? 1 - (c.t - 1.2) / 0.6 : 1);
+      const rise = REDUCED_MOTION.matches ? 0 : c.t * 14;
       ctx.save();
-      ctx.globalAlpha = alpha;
-      ctx.strokeStyle = '#f2d58c';
-      ctx.lineWidth = 2;
-      const ax = x - D * k * 0.75;
-      ctx.beginPath();
-      ctx.arc(ax + 18, (loadedY + nextY) / 2, (nextY - loadedY) / 2 + 6, Math.PI * 0.6, Math.PI * 1.4);
-      ctx.stroke();
-      ctx.beginPath();
-      const top = (loadedY + nextY) / 2 - ((nextY - loadedY) / 2 + 6) * Math.sin(Math.PI * 0.4);
-      ctx.moveTo(ax + 18 - 6, top - 1);
-      ctx.lineTo(ax + 18 + 1, top - 5);
-      ctx.lineTo(ax + 18 - 1, top + 5);
-      ctx.stroke();
-      if (!tried) label(ctx, COARSE.matches ? 'two-finger tap' : 'right-click', x, y + 72, '#f2d58c', 13, 'center');
+      ctx.globalAlpha = a;
+      ctx.font = '600 22px Cinzel, Georgia, serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = 'rgba(10,8,5,0.8)';
+      ctx.strokeText(c.text, c.x, c.y - rise);
+      ctx.fillStyle = '#F2D58C';
+      ctx.fillText(c.text, c.x, c.y - rise);
       ctx.restore();
     }
-    if (!tried && COARSE.matches && since < 0.6) {
-      // two ghost fingertips
-      ctx.save();
-      ctx.globalAlpha = 0.5 * (1 - since / 0.6);
-      ctx.strokeStyle = '#e9dcc0';
-      ctx.lineWidth = 2;
-      for (const fx of [x - 104, x - 74]) {
-        ctx.beginPath();
-        ctx.arc(fx, y + 10, 11 + since * 10, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-      ctx.restore();
-    }
-  };
+    this.callouts = alive;
+  }
+}
 
-  const COMBO_COLORS = [0, 1, 2];
-  const drawCombo = (ctx, t) => {
-    const T = REDUCED_MOTION.matches ? 3.8 : t % 7.2;
-    const reduced = app.settings.reducedFlashing;
-    COMBO_COLORS.forEach((color, i) => {
-      const cx = 64 + i * 104;
-      const popAt = 0.8 + i;
-      const u = clamp01((T - popAt) / 0.3);
-      const back = clamp01((T - 6.6) / 0.5);
-      const gone = T >= popAt && T < 6.6;
-      const alpha = T >= 6.6 ? back : T < popAt ? 1 : 1 - u;
-      const s = gone ? 1 - 0.35 * u : 1;
-      if (alpha > 0) {
-        ctx.save();
-        ctx.globalAlpha = alpha;
-        for (let j = -1; j <= 1; j++) {
-          const d = 26 * s;
-          art.drawShadow(ctx, cx + j * 26, 52, d, 0.5);
-          art.drawOrb(ctx, cx + j * 26, 52, d, color, false, 0.9, 0, t);
-        }
-        ctx.restore();
-      }
-      const ring = T - popAt;
-      if (ring >= 0 && ring < 0.7) {
-        ctx.strokeStyle = `rgba(255,214,130,${(reduced ? 0.25 : 0.5) * (1 - ring / 0.7)})`;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(cx, 52, 24 + ring * 50, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-      pip(ctx, cx, 104, 1.8, gone);
-      label(ctx, `combo ${i + 1}`, cx, 132, gone ? '#f2d58c' : '#b8a888', 13, 'center');
-    });
-    // every third match drops a power-up; a shot collects it
-    const ix = 386;
-    const iy = 72 + (REDUCED_MOTION.matches ? 0 : Math.sin(t * 1.6) * 4);
-    const dropAt = 3.1;
-    const hitAt = 5.0;
-    if (T >= dropAt && T < hitAt + 0.6) {
-      const a = T < hitAt ? clamp01((T - dropAt) / 0.4) : 1 - clamp01((T - hitAt) / 0.4);
-      drawPowerupIcon(ctx, 'purpleFire', ix, iy, 18, t, a, null, reduced);
-      label(ctx, 'power-up', ix, 132, `rgba(242,213,140,${a})`, 13, 'center');
-      ctx.strokeStyle = `rgba(212,171,85,${0.6 * a})`;
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(300, iy);
-      ctx.lineTo(340, iy);
-      ctx.moveTo(334, iy - 5);
-      ctx.lineTo(340, iy);
-      ctx.lineTo(334, iy + 5);
-      ctx.stroke();
-    }
-    const shotAt = 4.3;
-    if (T >= shotAt && T < hitAt) {
-      const v = (T - shotAt) / (hitAt - shotAt);
-      const oy = DEMO_H + 10 + (iy - DEMO_H - 10) * v;
-      art.drawOrb(ctx, ix, oy, 20, 1, false, 0.9, 0, t);
-    }
-    const ring = T - hitAt;
-    if (ring >= 0 && ring < 0.7) {
-      ctx.strokeStyle = `rgba(255,214,130,${(reduced ? 0.3 : 0.6) * (1 - ring / 0.7)})`;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(ix, iy, 20 + ring * 40, 0, Math.PI * 2);
-      ctx.stroke();
-    }
-  };
+/** Arrow pointer with its tip at (x, y). */
+function drawArrow(ctx, x, y, press) {
+  const s = 1 - press * 0.12;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(s, s);
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(0, 26);
+  ctx.lineTo(7, 20);
+  ctx.lineTo(12, 31);
+  ctx.lineTo(17, 29);
+  ctx.lineTo(12, 18);
+  ctx.lineTo(21, 18);
+  ctx.closePath();
+  ctx.fillStyle = '#E9DCC0';
+  ctx.strokeStyle = '#1A1610';
+  ctx.lineWidth = 2;
+  ctx.lineJoin = 'round';
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
 
-  const DEMOS = { aim: drawAim, swap: drawSwap, combo: drawCombo };
-  const loop = () => {
-    if (!el.isConnected) return cleanup();
-    const c = modal.querySelector('canvas.tut-demo');
-    const draw = DEMOS[PAGES[page].id];
-    if (c && draw) {
-      const ctx = c.getContext('2d');
-      const k = c.width / DEMO_W;
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.clearRect(0, 0, c.width, c.height);
-      ctx.setTransform(k, 0, 0, k, 0, 0);
-      draw(ctx, clock());
-    }
-    requestAnimationFrame(loop);
-  };
-
-  render();
-  requestAnimationFrame(loop);
-  return el;
+/** A small mouse with its right button lit, centred on (x, y). */
+function drawMouse(ctx, x, y, press) {
+  const w = 26;
+  const h = 38;
+  ctx.save();
+  ctx.translate(x - w / 2, y - h / 2);
+  ctx.fillStyle = '#E9DCC0';
+  ctx.strokeStyle = '#1A1610';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.roundRect(0, 0, w, h, 12);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = press > 0 ? '#F2B84C' : '#D4AB55';
+  ctx.beginPath();
+  ctx.roundRect(w / 2 + 1, 2, w / 2 - 3, 14, [0, 10, 0, 0]);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(w / 2, 0);
+  ctx.lineTo(w / 2, 16);
+  ctx.moveTo(0, 16);
+  ctx.lineTo(w, 16);
+  ctx.stroke();
+  ctx.restore();
 }
