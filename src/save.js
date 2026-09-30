@@ -11,6 +11,7 @@ export function defaultSave() {
     completed: [],
     loadout: [],
     seenPrologue: false,
+    seenTutorial: false, // How to Play shown once, before the first day begun
     seenEnchantments: [], // unlocked enchantments the player has looked at in the menu
     seenPowerups: [], // power-up types the player has collected at least once
     options: { reducedFlashing: false, musicVolume: 0.6, sfxVolume: 0.85, muted: false, difficulty: 'normal' },

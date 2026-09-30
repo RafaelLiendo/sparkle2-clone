@@ -22,6 +22,7 @@ import {
 } from './save.js';
 import { TouchGestures } from './touchGestures.js';
 import { paintMap } from './ui/mapArt.js';
+import { showTutorial } from './ui/tutorial.js';
 
 const W = CONFIG.canvasW;
 const H = CONFIG.canvasH;
@@ -464,13 +465,31 @@ export class App {
           <button class="btn" data-act="options">Options</button>
         </nav>
         ${this.difficultyPicker()}
-        <p class="hint">${this.controlsHint()}</p>
+        <div class="title-help">
+          <button class="btn small" data-act="howto">How to Play</button>
+          <p class="hint">${this.controlsHint()}</p>
+        </div>
       </div>`);
     this.bindClicks({
       '[data-act=story]': () => this.showMap(),
+      '[data-act=howto]': () => this.showHowToPlay(() => this.showTitle()),
       '[data-act=enchant]': () => this.showEnchantments(() => this.showTitle()),
       '[data-act=options]': () => this.showOptions(() => this.showTitle()),
       '[data-diff]': (e, el) => this.pickDifficulty(el),
+    });
+  }
+
+  /** How to Play; the first time it is seen, it runs before the day begins. */
+  showHowToPlay(onDone, { first = false } = {}) {
+    showTutorial(this, {
+      first,
+      onDone: () => {
+        if (!this.save.seenTutorial) {
+          this.save.seenTutorial = true;
+          this.persist();
+        }
+        onDone();
+      },
     });
   }
 
@@ -524,6 +543,7 @@ export class App {
           <button class="btn small" data-act="back">Title</button>
           <div class="keys" aria-label="Enchanted keys recovered: ${keys.length} of 5">${keySlots}</div>
           <button class="btn small${this.enchantBtnClass()}" data-act="enchant">Enchantments</button>
+          <button class="btn small" data-act="howto">How to Play</button>
           <button class="btn small" data-act="options">Options</button>
         </div>
       </div>`);
@@ -532,6 +552,7 @@ export class App {
       '[data-act=back]': () => this.showTitle(),
       '[data-act=enchant]': () => this.showEnchantments(() => this.showMap()),
       '[data-act=options]': () => this.showOptions(() => this.showMap()),
+      '[data-act=howto]': () => this.showHowToPlay(() => this.showMap()),
       '[data-day]': (e, el) => this.showDayIntro(el.dataset.day),
     });
     if (!this.save.seenPrologue) {
@@ -614,7 +635,7 @@ export class App {
       {
         '[data-act=cancel]': () => this.closeModal(),
         '[data-act=enchant]': () => this.showEnchantments(() => this.showDayIntro(id)),
-        '[data-act=go]': () => this.startDay(id),
+        '[data-act=go]': () => (this.save.seenTutorial ? this.startDay(id) : this.showHowToPlay(() => this.startDay(id), { first: true })),
       },
     );
     this.paintSwatches(el);
@@ -705,6 +726,7 @@ export class App {
             this.save.completed = [];
             this.save.loadout = [];
             this.save.seenPrologue = false;
+            this.save.seenTutorial = false;
             this.save.seenEnchantments = [];
             this.save.seenPowerups = [];
             this.persist();
@@ -777,6 +799,7 @@ export class App {
         <button class="btn primary" data-act="resume">Resume</button>
         <button class="btn" data-act="restart">Restart the day</button>
         <button class="btn" data-act="options">Options</button>
+        <button class="btn" data-act="howto">How to Play</button>
         ${fullscreenSupported() ? `<button class="btn" data-act="fullscreen">${this.fullscreenLabel()}</button>` : ''}
         <button class="btn" data-act="map">Retreat to the Map</button>
       </div>`,
@@ -785,6 +808,7 @@ export class App {
         '[data-act=fullscreen]': () => toggleFullscreen(),
         '[data-act=restart]': () => this.startDay(this.day.id),
         '[data-act=options]': () => this.showOptions(() => this.pauseAgain()),
+        '[data-act=howto]': () => this.showHowToPlay(() => this.pauseAgain()),
         '[data-act=map]': () => this.showMap(),
       },
     );

@@ -10,6 +10,15 @@ export const isFullscreen = () => !!(doc.fullscreenElement || doc.webkitFullscre
 /** True when running as an installed web app (Add to Home Screen). */
 export const isStandalone = () => navigator.standalone === true || matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches;
 
+/** 'ios' | 'android' | 'desktop', for platform-specific full-screen instructions. */
+export function platform() {
+  const ua = navigator.userAgent;
+  // iPadOS reports itself as a Mac; touch points give it away
+  if (/iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) return 'ios';
+  if (/Android/i.test(ua)) return 'android';
+  return 'desktop';
+}
+
 export async function toggleFullscreen() {
   try {
     if (isFullscreen()) {

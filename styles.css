@@ -896,3 +896,170 @@ button:focus-visible {
     border-color: var(--gold);
   }
 }
+
+/* ---------------------------------------------------------------- how to play */
+.title-help {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.title-help .hint {
+  margin: 0;
+}
+.modal.tutorial {
+  position: relative;
+  padding-top: 20px;
+}
+.tut-step {
+  margin: 0 0 4px;
+  font-family: Cinzel, Georgia, serif;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+.tut-skip {
+  position: absolute;
+  top: 16px;
+  right: 18px;
+}
+.tut-demo {
+  display: block;
+  margin: 2px auto 8px;
+  border-radius: 8px;
+  background: radial-gradient(ellipse at 50% 60%, rgba(60, 56, 44, 0.55), rgba(10, 10, 8, 0.2) 75%);
+}
+.tut-text {
+  font-size: 19px;
+  line-height: 1.4;
+  margin: 0 0 12px;
+}
+.tut-text.small {
+  font-size: 16px;
+  color: var(--ink-dim);
+}
+.tut-text b,
+.ctl b,
+.fs-card b {
+  color: var(--gold-hi);
+  font-weight: 500;
+}
+kbd {
+  font-family: Cinzel, Georgia, serif;
+  font-size: 0.8em;
+  padding: 1px 6px;
+  border: 1px solid #6a5a3a;
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: rgba(60, 50, 30, 0.6);
+  color: var(--gold-hi);
+}
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+}
+.ctl {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 7px 12px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font-size: 17px;
+  color: var(--ink-dim);
+}
+.ctl.here {
+  border-color: #6a5a3a;
+  background: rgba(60, 50, 30, 0.45);
+  color: var(--ink);
+}
+.ctl-lbl {
+  flex: none;
+  width: 118px;
+  font-family: Cinzel, Georgia, serif;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+.ctl.here .ctl-lbl {
+  color: var(--gold-hi);
+}
+.try {
+  margin: 10px 0 0;
+  font-style: italic;
+  color: var(--gold-hi);
+}
+.fs-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+}
+.fs-card {
+  padding: 8px 14px;
+  border: 1px solid #4d4636;
+  border-radius: 8px;
+  color: var(--ink-dim);
+}
+.fs-card.here {
+  border-color: var(--gold);
+  background: rgba(60, 50, 30, 0.45);
+  color: var(--ink);
+}
+.fs-card p {
+  margin: 4px 0 0;
+  font-size: 16px;
+  line-height: 1.35;
+}
+.fs-name {
+  display: flex;
+  align-items: center;
+  font-family: Cinzel, Georgia, serif;
+  font-size: 15px;
+  color: var(--gold-hi);
+}
+.glyph {
+  display: inline-block;
+  width: 1.15em;
+  height: 1.15em;
+  vertical-align: -0.2em;
+  fill: none;
+  stroke: var(--gold-hi);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.row.tight {
+  margin-top: 12px;
+}
+.tut-nav {
+  display: flex;
+  align-items: center;
+  margin-top: 18px;
+}
+.tut-side {
+  flex: 1;
+  display: flex;
+}
+.tut-side.right {
+  justify-content: flex-end;
+}
+.dots {
+  display: flex;
+  gap: 8px;
+}
+.dot {
+  width: 8px;
+  height: 8px;
+  transform: rotate(45deg);
+  border: 1px solid #8a6a30;
+}
+.dot.on {
+  background: var(--gold);
+}
+.map-bar .btn {
+  white-space: nowrap;
+}

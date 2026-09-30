@@ -26,6 +26,17 @@ Any static file server works too; ES modules just need `http://`, not `file://`.
 | Pause | pause button | pause button | Esc or P |
 | Full screen | corner button on the title and map, or Pause menu | same (iPhone: Add to Home Screen) | F |
 
+### How to Play
+
+A four-page guide opens the first time a day is begun, and again from **How to Play** on the title, the map bar or the Pause menu:
+
+1. **Aim and fire**: the goal in two lines, plus the controls.
+2. **Swap orbs**: a live Slinger labels the loaded and next orbs. The player can try the swap right there with the real inputs (two-finger tap or tapping the Slinger; right-click, wheel or Space).
+3. **Combos and power-ups**: three matches in a row drop a power-up, and a shot collects it.
+4. **Play in full screen**: steps for computer, Android and iPhone/iPad, with this device's card first.
+
+Controls for the current device (touch, or mouse and keys) come first. The first-run guide offers Skip, and it ends with "Begin the day".
+
 ### Mobile
 
 - Touch uses Pointer Events. When a second finger lands, the Slinger swaps once. Nothing fires until every finger has lifted, so a two-finger tap never shoots. Logic in `src/touchGestures.js`.
@@ -74,6 +85,7 @@ src/
     effects.js     timed-effect registry + Butterflies / Fireflies / Wrath of the Stars
   render/          orb art, painterly backgrounds, VFX, power-up glyphs, scene renderer
   ui/mapArt.js     parchment World Map
+  ui/tutorial.js   How to Play pages and their live illustrations
   audio.js         synthesised clicks, cracks, shimmer and the ambient bed
   app.js           scenes, DOM overlays, input, fixed-step (120 Hz) loop
 test/              node:test suites for the rules in §1–6 and the touch gestures
